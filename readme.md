@@ -11,6 +11,7 @@ first ssh
 Clone   
    ```shell
   git clone https://github.com/NH89/opencl-sph
+  cd opencl-sph
   ```
   
 Load Intel modules for compatibility
@@ -27,9 +28,10 @@ Create build and install folder, and navigate into that folder
 
 Run Cmake with hint
    ```shell
-  cmake -DCMAKE_INSTALL_PREFIX=../install -DCL_LIB_PATH=/pawsey/opencl-sdk/7.0.0/opencl/SDK/lib64 .. -DOpenCL_LIBRARY=/pawsey/opencl-sdk/7.0.0/opencl/SDK/lib64/libOpenCL.so
+cmake -DCMAKE_INSTALL_PREFIX=../install -DOpenCL_INCLUDE_DIR=/pawsey/opencl-sdk/7.0.0/opencl/SDK/include .. -DOpenCL_LIBRARY=/pawsey/opencl-sdk/7.0.0/opencl/SDK/lib64/libOpenCL.so
+
   ```
-(Alternatively load cuda module)
+(Alternatively load cuda module with cuda's opencl backend )
    ```shell
   module load cuda
   cmake -DCMAKE_INSTALL_PREFIX=../install .. 

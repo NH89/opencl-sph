@@ -4,7 +4,7 @@
 #include <math.h>
 #define CL_USE_DEPRECATED_OPENCL_1_2_APIS   // needed to use clCreateCommandQueue on OpenCL-2.0
 #include <CL/opencl.h>
-
+#include <cmath>
 #include "clerror.h"
 #include "../macros.h"
 #include "../types.h"
@@ -15,11 +15,8 @@
 
 #define NUM_PS_ARGS 10
 
-// #define WG_FUJ_SZ 896
-// TODO Careful, currently the conf file is ignored in deciding the size of the local worker size
-// It is set to be the last 2^k value to be smaller or equal to the WG_FUJ_SZ  
-//#define WG_FUJ_SZ 256
-static size_t max_work_item_size;
+
+static size_t* _max_work_item_size;
 static int _ready = 0;
 static cl_context _context = NULL;
 static cl_command_queue * _command_queues;
@@ -78,39 +75,42 @@ printf("chk4.2 ");
     //int plat_num=1;//plat_num 0 = Intel, 1 = Nvidia on Bracewell
     //int dev_num=3;//0,1,2,3 work for plat_num 1, ie Nvidia on Bracewell
     int num_devices=(int)_platforms[target_platform].num_devices;
-	const cl_device_id *devices = &_platforms[target_platform].devices[target_device].id;
+
+    cl_device_id devices[num_devices];
+    for ( int i = 0; i < num_devices; i++){devices[i] =_platforms[target_platform].devices[i].id;}
 
     _context = clCreateContext
             ( (const cl_context_properties*) context_properties,//0,
-              1,//num_devices, it does not like when num_devices>1,
+              num_devices,
 			  devices, // const cl_device_id * devices
 			  contextErrorCallback, NULL, &error );
 
     HANDLE_CL_ERROR(error);
 
     _command_queues     = malloc(_platforms[target_platform].num_devices*sizeof(cl_command_queue)); // replaced [0] with target_platform
-    _num_command_queues = _platforms[target_platform].num_devices; // replaced [0] with [target_platform]
+    _num_command_queues = _platforms[target_platform].num_devices; // every device needs its own queue
 
     ASSERT(_num_command_queues > 0);
-    
-    // JD added, determine max worker size during long time to avoid crashing on Intel Integrated GPU  
 
-    // TODO For now the device and platform selection is just hard coded to be zero, change that !
+    // JD added, dynamiclly find out the max work item dimension in first dimension for runtime
+    _max_work_item_size = (size_t*) malloc(num_devices * sizeof(size_t));
+    for (int i= 0; i < num_devices; i++){
+      cl_uint num;
+      clGetDeviceInfo(devices[i], CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, sizeof(cl_uint), &num, NULL);
+      // Get the max. dimensions of the work-groups
+      size_t dims[num];
+      clGetDeviceInfo(devices[i], CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(dims), &dims, NULL);
+      _max_work_item_size[i] = dims[0]; // For now just take the first dimension
+      printf("\nThe Runtime determined specific maximum work item size is %u \n", dims[0]);
 
-    // Find the maximum dimensions of the work-groups
-    cl_uint num; 
-    clGetDeviceInfo(devices[0], CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, sizeof(cl_uint), &num, NULL);
-    // Get the max. dimensions of the work-groups
-    size_t dims[num];
-    clGetDeviceInfo(devices[0], CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(dims), &dims, NULL);
-    max_work_item_size = dims[0]; // For now just take the first dimension;
-    printf("The Device specific maximum work item size is %u \n", dims[0]);
-  
+
+    }
+
 printf("chk4.3 ");
     unsigned int i;
     for (i = 0; i < _num_command_queues; ++i) {
         _command_queues[i] = clCreateCommandQueue
-            ( _context, _platforms[target_platform].devices[target_device].id, // may need _platforms[1] for nvidia, [0]=>CPU
+            ( _context, devices[i], // may need _platforms[1] for nvidia, [0]=>CPU
               CL_QUEUE_PROFILING_ENABLE, &error );
 printf("chk4.4 ");
         HANDLE_CL_ERROR(error);
@@ -167,7 +167,7 @@ cl_kernel get_kernel(psdata_opencl pso, const char * name)
     return NULL;
 }
 
-void call_kernel_device_opencl(psdata_opencl pso, const char * kernel_name, cl_uint work_dim,
+void call_kernel_device_opencl(psdata_opencl pso, const unsigned int & device_i, const char * kernel_name, cl_uint work_dim,
                                const size_t * global_work_offset, const size_t * global_work_size,
                                const size_t * local_work_size)
 {
@@ -177,10 +177,10 @@ void call_kernel_device_opencl(psdata_opencl pso, const char * kernel_name, cl_u
 
     //note(1, "Calling kernel %s with work size %u and local size %u\n", kernel_name, *global_work_size, *local_work_size);
 
-    HANDLE_CL_ERROR(clEnqueueNDRangeKernel(_command_queues[0], kernel, work_dim, global_work_offset,
+    HANDLE_CL_ERROR(clEnqueueNDRangeKernel(_command_queues[device_i], kernel, work_dim, global_work_offset,
                                            global_work_size, NULL, 0, NULL, NULL));
 
-    HANDLE_CL_ERROR(clFinish(_command_queues[0]));
+    HANDLE_CL_ERROR(clFinish(_command_queues[device_i]));
 }
 
 void build_program(psdata * data, psdata_opencl * pso, const char * file_list)
@@ -596,7 +596,7 @@ psdata_opencl create_psdata_opencl(psdata * data, const char * file_list)
 
     /* Now calculate device specific sim variables */
 
- 
+
     unsigned int * gridres;
     PS_GET_FIELD(*data, "gridres", unsigned int, &gridres);
 
@@ -806,7 +806,7 @@ void terminate_opencl()
     }
 
     free(_command_queues);
-
+    free(max_work_item_size);
     HANDLE_CL_ERROR(clReleaseContext(_context));
 
     _ready = 0;

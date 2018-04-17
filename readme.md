@@ -27,10 +27,11 @@ Create build and install folder, and navigate into that folder
 
 Run Cmake with hint
    ```shell
-  cmake -DCMAKE_INSTALL_PREFIX=../install .. -DOpenCL_LIBRARY=/pawsey/opencl-sdk/7.0.0/opencl/SDK/lib64/libOpenCL.so
+  cmake -DCMAKE_INSTALL_PREFIX=../install -DCL_LIB_PATH=/pawsey/opencl-sdk/7.0.0/opencl/SDK/lib64 .. -DOpenCL_LIBRARY=/pawsey/opencl-sdk/7.0.0/opencl/SDK/lib64/libOpenCL.so
   ```
 (Alternatively load cuda module)
    ```shell
+  module load cuda
   cmake -DCMAKE_INSTALL_PREFIX=../install .. 
   ```
 make targets

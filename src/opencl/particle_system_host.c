@@ -501,7 +501,7 @@ void populate_position_cuboid_device_opencl(psdata_opencl pso,
                                             unsigned int zsize)
 {
     size_t work_group_edge = (size_t) pow
-        ((REAL) _platforms[target_platform].devices[target_device].max_workgroup_size, 1.0/3.0);//replaced [0] with [target_platform] ... [target_device]
+        ((REAL) _platforms[target_platform].devices[target_device].max_workgroup_size, 1.0/3.0);
     size_t local_work_size[] = { work_group_edge, work_group_edge, work_group_edge };
     size_t global_work_size[] = { (xsize/work_group_edge + 1) * work_group_edge,
                                   (ysize/work_group_edge + 1) * work_group_edge,
@@ -602,9 +602,9 @@ psdata_opencl create_psdata_opencl(psdata * data, const char * file_list)
 
     pso.num_grid_cells = gridres[0]*gridres[1]*gridres[2];
 
-    pso.po2_workgroup_size = max_work_item_size;
+    pso.po2_workgroup_size = max_work_item_size[device_i];
 
-    pso.num_blocks = (pso.num_grid_cells - 1) / (2*max_work_item_size) + 1;
+    pso.num_blocks = (pso.num_grid_cells - 1) / (2*max_work_item_size[device_i]) + 1;
 
     build_program(data, &pso, file_list);
     create_kernels(&pso);

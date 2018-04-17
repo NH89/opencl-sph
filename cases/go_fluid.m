@@ -1,7 +1,7 @@
 clear all;
 
 num_steps = 2000;
-
+addpath(genpath('..'));
 testinit_fluid_wrap();
 
 [position, density, n] = querystate('position', 'density', 'n');

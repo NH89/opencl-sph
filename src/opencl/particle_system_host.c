@@ -2,19 +2,22 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#define CL_USE_DEPRECATED_OPENCL_1_2_APIS   // needed to use clCreateCommandQueue on OpenCL-2.0
 #include <CL/opencl.h>
 
 #include "clerror.h"
 #include "particle_system_host.h"
 #include "../particle_system.h"
 #include "../note.h"
-#include "../3rdparty/whereami.h"
 #include "platforminfo.h"
 
 #define NUM_PS_ARGS 10
 
-#define WG_FUJ_SZ 896
-
+// #define WG_FUJ_SZ 896
+// TODO Careful, currently the conf file is ignored in deciding the size of the local worker size
+// It is set to be the last 2^k value to be smaller or equal to the WG_FUJ_SZ  
+//#define WG_FUJ_SZ 256
+static size_t max_work_item_size;
 static int _ready = 0;
 static cl_context _context = NULL;
 static cl_command_queue * _command_queues;
@@ -22,6 +25,10 @@ static unsigned int _num_command_queues = 0;
 
 static Platform const * _platforms;
 static unsigned int _num_platforms;
+
+// static targets to be replaced in later versions.
+static int target_platform = 0; // for Bracewell
+static int target_device = 0; // 0,1,2,3 for Bracewell
 
 #ifdef MATLAB_MEX_FILE
 static psdata_opencl _pso;
@@ -52,32 +59,57 @@ void init_opencl()
     if (_ready) return;
 
     get_opencl_platform_info(&_platforms, &_num_platforms);
-
+printf("chk4.1 ");
     ASSERT(_num_platforms > 0);
 
     const cl_context_properties context_properties[] = {
-        CL_CONTEXT_PLATFORM, (cl_context_properties) _platforms[0].id, 0
+        CL_CONTEXT_PLATFORM, (cl_context_properties) _platforms[target_platform].id, 0  // replaced [0] with target_platform
     };
-    
-    cl_int error;
 
-    _context = clCreateContextFromType
+    cl_int error;
+printf("chk4.2 ");
+    /*_context = clCreateContextFromType  // not working on Bracewell. Reason ?
         ( (const cl_context_properties*) context_properties,
-          CL_DEVICE_TYPE_GPU, contextErrorCallback, NULL, &error );
+          CL_DEVICE_TYPE_GPU, contextErrorCallback, NULL, &error ); */
+
+    //int plat_num=1;//plat_num 0 = Intel, 1 = Nvidia on Bracewell
+    //int dev_num=3;//0,1,2,3 work for plat_num 1, ie Nvidia on Bracewell
+    int num_devices=(int)_platforms[target_platform].num_devices;
+	const cl_device_id *devices = &_platforms[target_platform].devices[target_device].id;
+
+    _context = clCreateContext
+            ( (const cl_context_properties*) context_properties,//0,
+              1,//num_devices, it does not like when num_devices>1,
+			  devices, // const cl_device_id * devices
+			  contextErrorCallback, NULL, &error );
 
     HANDLE_CL_ERROR(error);
 
-    _command_queues     = malloc(_platforms[0].num_devices*sizeof(cl_command_queue));
-    _num_command_queues = _platforms[0].num_devices;
+    _command_queues     = malloc(_platforms[target_platform].num_devices*sizeof(cl_command_queue)); // replaced [0] with target_platform
+    _num_command_queues = _platforms[target_platform].num_devices; // replaced [0] with [target_platform]
 
     ASSERT(_num_command_queues > 0);
+    
+    // JD added, determine max worker size during long time to avoid crashing on Intel Integrated GPU  
 
+    // TODO For now the device and platform selection is just hard coded to be zero, change that !
+
+    // Find the maximum dimensions of the work-groups
+    cl_uint num; 
+    clGetDeviceInfo(devices[0], CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, sizeof(cl_uint), &num, NULL);
+    // Get the max. dimensions of the work-groups
+    size_t dims[num];
+    clGetDeviceInfo(devices[0], CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(dims), &dims, NULL);
+    max_work_item_size = dims[0]; // For now just take the first dimension;
+    printf("The Device specific maximum work item size is %u \n", dims[0]);
+  
+printf("chk4.3 ");
     unsigned int i;
     for (i = 0; i < _num_command_queues; ++i) {
         _command_queues[i] = clCreateCommandQueue
-            ( _context, _platforms[0].devices[i].id,
+            ( _context, _platforms[target_platform].devices[target_device].id, // may need _platforms[1] for nvidia, [0]=>CPU
               CL_QUEUE_PROFILING_ENABLE, &error );
-
+printf("chk4.4 ");
         HANDLE_CL_ERROR(error);
     }
 
@@ -140,10 +172,10 @@ void call_kernel_device_opencl(psdata_opencl pso, const char * kernel_name, cl_u
 
     ASSERT(kernel != NULL);
 
-    note(1, "Calling kernel %s with work size %u and local size %u\n", kernel_name, *global_work_size, *local_work_size);
+    //note(1, "Calling kernel %s with work size %u and local size %u\n", kernel_name, *global_work_size, *local_work_size);
 
     HANDLE_CL_ERROR(clEnqueueNDRangeKernel(_command_queues[0], kernel, work_dim, global_work_offset,
-                                           global_work_size, local_work_size, 0, NULL, NULL));
+                                           global_work_size, NULL, 0, NULL, NULL));
 
     HANDLE_CL_ERROR(clFinish(_command_queues[0]));
 }
@@ -157,28 +189,14 @@ void build_program(psdata * data, psdata_opencl * pso, const char * file_list)
         char * exe_path;
 
 #ifndef MATLAB_MEX_FILE
-        int exe_path_len;
-
-        exe_path_len = wai_getExecutablePath(NULL, 0, NULL);
-        exe_path = malloc((exe_path_len+1)*sizeof(char));
-        wai_getExecutablePath(exe_path, exe_path_len, NULL);
-
-        exe_path[exe_path_len] = 0x0;
-        char * lastslash = strrchr(exe_path, '/');
-
-        if (lastslash != NULL) {
-            exe_path_len = (int)( (lastslash - exe_path) / sizeof(char) );
-            exe_path[exe_path_len] = 0x0;
-        }
+        exe_path = OPENCL_SPH_KERNELS_ROOT;
 #else
-        exe_path = getenv("EXE_PATH");
+		exe_path = getenv("EXE_PATH");
 #endif
 
         const char * file_extension = ".cl";
-#ifndef MATLAB_MEX_FILE
-        const char * kern_rel_path = "/../kernels/";
-#else
-        const char * kern_rel_path = "/../../kernels/";
+#ifdef MATLAB_MEX_FILE
+		const char * kern_rel_path = "/../../kernels/";
 #endif
 
         char * file_list_copy = malloc((strlen(file_list)+1)*sizeof(char));
@@ -191,13 +209,12 @@ void build_program(psdata * data, psdata_opencl * pso, const char * file_list)
 
         while (file_name) {
             char * file_path = malloc( ( strlen(exe_path)
-                                       + strlen(kern_rel_path)
                                        + strlen(file_name)
                                        + strlen(file_extension)
                                        + 1
                                        ) * sizeof(char));
-            
-            sprintf(file_path, "%s%s%s%s", exe_path, kern_rel_path, file_name, file_extension);
+
+            sprintf(file_path, "%s%s%s", exe_path, file_name, file_extension);
 
             note(1, "Adding OpenCL file at %s\n", file_path);
 
@@ -235,10 +252,6 @@ void build_program(psdata * data, psdata_opencl * pso, const char * file_list)
 
         free(file_list_copy);
 
-#ifndef MATLAB_MEX_FILE
-        free(exe_path);
-#endif
-
         char * compilation_unit_with_macros = add_field_macros_to_start_of_string(compilation_unit, data);
         free(compilation_unit);
 
@@ -250,18 +263,18 @@ void build_program(psdata * data, psdata_opencl * pso, const char * file_list)
         free(compilation_unit_with_macros);
     }
 
-    cl_int build_error = clBuildProgram(pso->ps_prog, 1, &_platforms[0].devices[0].id, "-cl-fast-relaxed-math", NULL, NULL);
+    cl_int build_error = clBuildProgram(pso->ps_prog, 1, &_platforms[target_platform].devices[target_device].id, NULL/*"-cl-fast-relaxed-math"*/, NULL, NULL); // replaced [0] with [target_platform]..[target_device]
 
     if (build_error != CL_SUCCESS) {
         char * error_log;
         size_t log_length;
 
-        HANDLE_CL_ERROR(clGetProgramBuildInfo(pso->ps_prog, _platforms[0].devices[0].id,
+        HANDLE_CL_ERROR(clGetProgramBuildInfo(pso->ps_prog, _platforms[target_platform].devices[target_device].id,//replaced [0] with [target_platform] ...[target_device]
                                               CL_PROGRAM_BUILD_LOG, 0, NULL, &log_length));
 
         error_log = malloc(log_length*sizeof(char));
 
-        HANDLE_CL_ERROR(clGetProgramBuildInfo(pso->ps_prog, _platforms[0].devices[0].id,
+        HANDLE_CL_ERROR(clGetProgramBuildInfo(pso->ps_prog, _platforms[target_platform].devices[target_device].id,//replaced [0] with [target_platform] ...[target_device]
                                               CL_PROGRAM_BUILD_LOG, log_length, error_log, NULL));
 
         printf("%s\n", error_log);
@@ -391,7 +404,7 @@ static void insert_particles_in_bin_array_device_opencl(psdata_opencl pso)
     ASSERT(insert_particles_in_bin_array != NULL);
 
     HANDLE_CL_ERROR(clEnqueueNDRangeKernel(_command_queues[0], insert_particles_in_bin_array, 1, NULL, &num_work_items, &pso.po2_workgroup_size, 0, NULL, NULL));
-    
+
     HANDLE_CL_ERROR(clFinish(_command_queues[0]));
 }
 
@@ -437,7 +450,7 @@ void compute_forces_device_opencl(psdata_opencl pso)
     cl_kernel compute_forces = get_kernel(pso, "compute_forces");
 
     ASSERT(compute_forces != NULL);
-    
+
     HANDLE_CL_ERROR(clEnqueueNDRangeKernel(_command_queues[0], compute_forces, 1, NULL,
                                            &num_workitems, &pso.po2_workgroup_size, 0, NULL, NULL));
 
@@ -457,7 +470,7 @@ void step_forward_device_opencl(psdata_opencl pso)
     cl_kernel step_forward = get_kernel(pso, "step_forward");
 
     ASSERT(step_forward != NULL);
-    
+
     HANDLE_CL_ERROR(clEnqueueNDRangeKernel(_command_queues[0], step_forward, 1, NULL,
                                            &num_workitems, &pso.po2_workgroup_size, 0, NULL, NULL));
 
@@ -473,7 +486,6 @@ void call_for_all_particles_device_opencl(psdata_opencl pso, const char * kernel
 
     size_t num_workgroups = (n - 1) / pso.po2_workgroup_size + 1;
     size_t num_workitems = num_workgroups * pso.po2_workgroup_size;
-
     call_kernel_device_opencl(pso, kernel_name, 1, 0, &num_workitems, &pso.po2_workgroup_size);
 }
 
@@ -485,7 +497,7 @@ void populate_position_cuboid_device_opencl(psdata_opencl pso,
                                             unsigned int zsize)
 {
     size_t work_group_edge = (size_t) pow
-        ((double) _platforms[0].devices[0].max_workgroup_size, 1.0/3.0);
+        ((double) _platforms[target_platform].devices[target_device].max_workgroup_size, 1.0/3.0);//replaced [0] with [target_platform] ... [target_device]
     size_t local_work_size[] = { work_group_edge, work_group_edge, work_group_edge };
     size_t global_work_size[] = { (xsize/work_group_edge + 1) * work_group_edge,
                                   (ysize/work_group_edge + 1) * work_group_edge,
@@ -580,20 +592,15 @@ psdata_opencl create_psdata_opencl(psdata * data, const char * file_list)
 
     /* Now calculate device specific sim variables */
 
-    unsigned int max_workgroup_size = WG_FUJ_SZ;
-
+ 
     unsigned int * gridres;
     PS_GET_FIELD(*data, "gridres", unsigned int, &gridres);
 
     pso.num_grid_cells = gridres[0]*gridres[1]*gridres[2];
 
-    size_t po2_workgroup_size = 1;
-    while (po2_workgroup_size<<1 < max_workgroup_size/* &&
-           po2_workgroup_size<<1 < pso.num_grid_cells*/) po2_workgroup_size <<= 1;
+    pso.po2_workgroup_size = max_work_item_size;
 
-    pso.po2_workgroup_size = po2_workgroup_size;
-
-    pso.num_blocks = (pso.num_grid_cells - 1) / (2*po2_workgroup_size) + 1;
+    pso.num_blocks = (pso.num_grid_cells - 1) / (2*max_work_item_size) + 1;
 
     build_program(data, &pso, file_list);
     create_kernels(&pso);
@@ -713,9 +720,9 @@ void sync_psdata_host_to_device(psdata data, psdata_opencl pso, int full)
                                              psdata_names_size(data), (char*) data.names, 0, NULL, NULL));
         HANDLE_CL_ERROR(clEnqueueWriteBuffer(_command_queues[0], pso.names_offsets, CL_FALSE, 0,
                                              fmsize, data.names_offsets, 0, NULL, NULL));
-        HANDLE_CL_ERROR(clEnqueueWriteBuffer(_command_queues[0], pso.dimensions, CL_FALSE, 0, 
+        HANDLE_CL_ERROR(clEnqueueWriteBuffer(_command_queues[0], pso.dimensions, CL_FALSE, 0,
                                              psdata_dimensions_size(data), data.dimensions, 0, NULL, NULL));
-        HANDLE_CL_ERROR(clEnqueueWriteBuffer(_command_queues[0], pso.num_dimensions, CL_FALSE, 0, 
+        HANDLE_CL_ERROR(clEnqueueWriteBuffer(_command_queues[0], pso.num_dimensions, CL_FALSE, 0,
                                              fmsize, data.num_dimensions, 0, NULL, NULL));
         HANDLE_CL_ERROR(clEnqueueWriteBuffer(_command_queues[0], pso.dimensions_offsets, CL_FALSE, 0,
                                              fmsize, data.dimensions_offsets, 0, NULL, NULL));
@@ -775,7 +782,7 @@ void sync_psdata_fields_device_to_host(psdata data, psdata_opencl pso, size_t nu
         HANDLE_CL_ERROR(clEnqueueReadBuffer(_command_queues[0], pso.data, CL_FALSE, data.data_offsets[f],
                                             data.data_sizes[f], (char*) data.data + data.data_offsets[f], 0, NULL, NULL));
     }
-    
+
     HANDLE_CL_ERROR(clFinish(_command_queues[0]));
 }
 

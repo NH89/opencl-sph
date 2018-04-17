@@ -1,0 +1,8 @@
+makefile*
+CMakeFiles
+build
+bin
+Makefile
+*.cmake
+*.a
+*.csv

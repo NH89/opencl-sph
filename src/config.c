@@ -3,7 +3,6 @@
 #include <string.h>
 
 #include "macros.h"
-#include "3rdparty/whereami.h"
 #include "note.h"
 #ifdef MATLAB_MEX_FILE
     #include "mex.h"
@@ -17,30 +16,17 @@ static char * g_section_titles[MAX_SECTIONS] = {NULL};
 static char * g_section_starts[MAX_SECTIONS] = {NULL};
 
 void load_config(const char * relativePath) {
-#ifndef MATLAB_MEX_FILE
-    // Get the absolute path of the config
-    int exe_path_len = wai_getExecutablePath(NULL, 0, NULL);
-    char * exe_path = malloc((exe_path_len+1)*sizeof(char));
-    wai_getExecutablePath(exe_path, exe_path_len, NULL);
-
-    exe_path[exe_path_len] = 0x0;
-    char * lastslash = strrchr(exe_path, '/');
-
-    if (lastslash != NULL) {
-        exe_path_len = (int)( (lastslash - exe_path) / sizeof(char) );
-        exe_path[exe_path_len] = '\0';
-    }
-#else
+#ifdef MATLAB_MEX_FILE
     char * exe_path = getenv("EXE_PATH");
 #endif
 
+#ifndef MATLAB_MEX_FILE
+    const char * conf_path = relativePath;
+#else
     char * conf_path = malloc((strlen(exe_path)+strlen(relativePath)+1)*sizeof(char));
     sprintf(conf_path, "%s%s", exe_path, relativePath);
-
-#ifndef MATLAB_MEX_FILE
-    free(exe_path);
 #endif
-
+	printf(" ## opening file %s ", conf_path); // added to check what file is being read //
     // Copy the contents
     FILE * conf = fopen(conf_path, "rb");
 
@@ -49,7 +35,9 @@ void load_config(const char * relativePath) {
         ASSERT(0);
     }
 
+#ifdef MATLAB_MEX_FILE
     free(conf_path);
+#endif
 
     fseek(conf, 0, SEEK_END);
     size_t conf_end = ftell(conf);

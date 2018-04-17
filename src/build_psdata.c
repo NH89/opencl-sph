@@ -458,8 +458,9 @@ static size_t length_field_spec_list(psdata_field_spec * list) {
 
     return length;
 }
-// Guarantees to link up all the entries in the given list so they can be freed with
-// the new root node. Sorting before creating the single large array prevents alignment issues
+// Guarantees to link up all the entries in the given list 
+// so they can be freed with the new root node. 
+// Sorting before creating the single large array prevents alignment issues
 static psdata_field_spec * sort_field_spec_list_by_type_size_descending(psdata_field_spec * list) {
     if (list == NULL) return NULL;
 
@@ -519,6 +520,9 @@ static psdata_field_spec * sort_field_spec_list_by_type_size_descending(psdata_f
     return reordered;
 }
 
+// Constraints for
+//void setUpConstraints()
+
 void build_psdata_from_string(psdata * data, const char * string) {
     char * string_copy = malloc((strlen(string)+1) * sizeof(char));
     strcpy(string_copy, string);
@@ -552,6 +556,8 @@ void build_psdata_from_string(psdata * data, const char * string) {
 
     free_psdata_field_spec_list(reordered);
 }
+
+
 void build_psdata(psdata * data, const char * path) {
     FILE * conf = fopen(path, "rb");
 

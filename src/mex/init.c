@@ -13,10 +13,12 @@ void onExit() {
 }
 
 void mexFunction(int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[]) {
+    
     if (nlhs != 0) mexErrMsgIdAndTxt("Init:ReturnError", "This function does not return anything.");
 
     psdata * data = get_stored_psdata();
-
+    
+    
     if (data != NULL) mexErrMsgIdAndTxt("Init:InitError", "Module already initialised");
 
     if (nrhs == 0 || !mxIsChar(prhs[0])) mexErrMsgIdAndTxt("Init:ArgError", "No config path given");
@@ -30,6 +32,7 @@ void mexFunction(int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[]) {
 
     mxFree(config_path);
 
+    
     create_stored_psdata_from_string(get_config_section("psdata_specification"));
 
     data = get_stored_psdata();
@@ -43,4 +46,5 @@ void mexFunction(int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[]) {
     unload_config();
 
     mexAtExit(onExit);
+     
 }

@@ -1,6 +1,7 @@
 #ifndef PARTICLE_SYSTEM_HOST_H_
 #define PARTICLE_SYSTEM_HOST_H_
 
+#define CL_USE_DEPRECATED_OPENCL_1_2_APIS   // needed to use clCreateCommandQueue on OpenCL-2.0
 #include <CL/opencl.h>
 #include "../particle_system.h"
 

@@ -181,12 +181,14 @@ void printCLError(cl_int error) {
         case CL_INVALID_DEVICE_PARTITION_COUNT:
             note(2, "CL_INVALID_DEVICE_PARTITION_COUNT\n");
             break;
+#ifdef CL_VERSION_2_0
         case CL_INVALID_PIPE_SIZE:
             note(2, "CL_INVALID_PIPE_SIZE\n");
             break;
         case CL_INVALID_DEVICE_QUEUE:
             note(2, "CL_INVALID_DEVICE_QUEUE\n");
             break;
+#endif
         default:
             note(2, "Unknown error\n");
     }

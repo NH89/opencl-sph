@@ -27,7 +27,7 @@ inline void computeStress (global double strain[6], double bulk_modulus, double 
         0                        , 0                        , 0                        , 0          , 2 * lame_mu, 0          ,
         0                        , 0                        , 0                        , 0          , 0          , 2 * lame_mu,
     };
-    
+
     for (uint i = 0; i < 6; ++i) {
         uint ir = i*6;
         stress[i] = c[ir]*strain[0] + c[ir+1]*strain[1] + c[ir+2]*strain[2] + c[ir+3]*strain[3] + c[ir+4]*strain[4] + c[ir+5]*strain[5];
@@ -55,7 +55,7 @@ kernel void compute_rotations_and_strains (PSO_ARGS) {
     USE_GRID_PROPS
 
     USE_FIELD_FIRST_VALUE(n, uint)
-    
+
     USE_FIELD(rotation, double) USE_FIELD(strain, double) USE_FIELD(position, double)
     USE_FIELD(originalpos, double) USE_FIELD_FIRST_VALUE(smoothingradius, double)
     USE_FIELD(density0, double) USE_FIELD_FIRST_VALUE(mass, double)
@@ -97,7 +97,7 @@ kernel void compute_rotations_and_strains (PSO_ARGS) {
         if (j == i) continue;
 
         double3 p = vload3(j, position) - ipos;
-        p = multiplyMatrixVector(r_t, p);
+        p = multiplyMatrixVectorPrivate(r_t, p);
 
         double3 q = vload3(j, originalpos) - ipos0;
 
@@ -152,7 +152,7 @@ kernel void compute_stresses (PSO_ARGS) {
 
     computeStress(strain + i*6, bulk_modulus, shear_modulus, stress + i*6);
 }
-   
+
 kernel void compute_forces_solids (PSO_ARGS) {
     USE_GRID_PROPS
 
@@ -213,9 +213,12 @@ kernel void compute_forces_solids (PSO_ARGS) {
 
     FINALISE_SOLIDS_FORCE_COMPUTATION
 
+
     double3 f = f_e + f_v;
 
     APPLY_CUBE_BOUNDS(ipos, f, -2.0, 2.0)
 
     vstore3(f, i, force);
+
+
 }

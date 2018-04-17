@@ -1,6 +1,6 @@
 clear all;
-
-init_wrap('/../../conf/solidstretch.conf');
+addpath('../bin/mex/');  
+%init_wrap('/../../conf/solidstretch.conf');
 
 % Set some initial conditions
 [y, x, z] = meshgrid(-1:0.4:1);

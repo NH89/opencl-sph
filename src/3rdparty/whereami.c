@@ -1,6 +1,7 @@
 // (‑●‑●)> released under the WTFPL v2 license, by Gregory Pakosz (@gpakosz)
 // https://github.com/gpakosz/whereami
 
+
 // in case you want to #include "whereami.c" in a larger compilation unit
 #if !defined(WHEREAMI_H)
 #include "whereami.h"
@@ -43,6 +44,8 @@ extern "C" {
 #define WAI_NOINLINE __declspec(noinline)
 #endif
 #endif
+
+
 
 static int WAI_PREFIX(getModulePath_)(HMODULE module, char* out, int capacity, int* dirname_length)
 {
@@ -140,7 +143,8 @@ int WAI_PREFIX(getModulePath)(char* out, int capacity, int* dirname_length)
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <limits.h>
+//#include <limits.h> // not all Linux distros define PATH_MAX in limits.h because it depends on the flesystem. Therefore use .. 
+#include <linux/limits.h>
 #ifndef __STDC_FORMAT_MACROS
 #define __STDC_FORMAT_MACROS
 #endif
@@ -163,17 +167,21 @@ int WAI_PREFIX(getExecutablePath)(char* out, int capacity, int* dirname_length)
   char* resolved = NULL;
   int length = -1;
 
-  for (;;)
-  {
+  for (;;)//infinite loop
+  {//WAI_PROC_SELF_EXE=/proc/self/exe  provides a simlink back to the fn that called it
     resolved = realpath(WAI_PROC_SELF_EXE, buffer);
-    if (!resolved)
+    	// the buffer should contain the full path of the file
+    	// resolved should be: char * ptr
+printf(" 'buffer=%c' ",buffer);
+    if (!resolved)  // error cannot access memory address for 'resolved'
       break;
-
-    length = (int)strlen(resolved);
-    if (length <= capacity)
+    	// strlen should return num chars in char array before str terminator.
+    length = (int)strlen(buffer); //resolved// resolved=? is crashing
+    	// had to change from strlen(resolved) on Bracewell.
+    if (length <= capacity) // length=-1, capacity=0
     {
-      memcpy(out, resolved, length);
-
+      memcpy(out, buffer, length);  // crashes when trying to write
+      	  	 // changed resolved to buffer  // resolved is still NULL, why ?
       if (dirname_length)
       {
         int i;

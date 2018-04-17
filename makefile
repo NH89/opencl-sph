@@ -1,4 +1,4 @@
-MATLAB_DIST_PATH="/usr/local/MATLAB/R2014b"
+MATLAB_DIST_PATH="/media/aslab/data/matlab"
 CC=$(shell which gcc)
 BIN_FILES=$(shell find bin -type f)
 BUILD_FILES=$(shell find build -type f)
@@ -27,7 +27,7 @@ ifneq ($(strip $(BUILD_FILES)),)
 endif
 
 bin/testopencl: build/testopencl.o bin/libsph.so
-	$(CC) -Wl,-rpath,'$$ORIGIN' -fPIC $< -o $@ -lsph -Lbin -lm
+	$(CC) -Wl,-rpath,'$$ORIGIN' -fPIC $< -o $@ -lsph -Lbin -lm -lOpenCL
 	@echo "$$(tput bold)$$(tput setaf 2)Built $@$$(tput sgr0)"
 
 LibSPH: bin/libsph.so
@@ -37,7 +37,7 @@ bin/libsph.so: build/particle_system.o build/opencl/particle_system_host.o build
 	@echo "$$(tput bold)$$(tput setaf 2)Built $@$$(tput sgr0)"
 
 build/%.o: src/%.c
-	$(CC) -fPIC -c $< -o $@
+	$(CC) -fPIC -c -I/media/aslab/data/matlab/extern/include $< -o $@
 
 bin/mex/%.m: src/mex/%.m
 	cp $< $@
@@ -45,7 +45,7 @@ bin/mex/%.m: src/mex/%.m
 LibSPH_mex: bin/mex/libsph_mex.so
 
 bin/mex/libsph_mex.so: build/mex/particle_system_mex.o build/mex/opencl/particle_system_host_mex.o build/mex/opencl/platforminfo_mex.o build/mex/note_mex.o build/mex/config_mex.o build/opencl/clerror.o build/3rdparty/whereami.o build/mex/stringly_mex.o build/mex/build_psdata_mex.o
-	$(CC) -shared -fPIC $^ -o $@ -lOpenCL
+	$(CC) -shared -fPIC -I/media/aslab/data/matlab/extern/include $^ -o $@ -lOpenCL
 	@echo "$$(tput bold)$$(tput setaf 2)Built $@$$(tput sgr0)"
 
 bin/mex/%.mexa64: build/mex/%.o bin/mex/libsph_mex.so
@@ -56,7 +56,7 @@ bin/mex/%.mexa64: build/mex/%.o bin/mex/libsph_mex.so
 	@echo "$$(tput bold)$$(tput setaf 2)Built MEX file $@$$(tput sgr0)"
 
 build/mex/%.o: src/mex/%.c
-	$(MATLAB_DIST_PATH)/bin/mex -O CFLAGS="$$CFLAGS -fPIC -std=c99" -c $< -outdir build/mex
+	$(MATLAB_DIST_PATH)/bin/mex -O CFLAGS="$$CFLAGS -fPIC -std=c99 -I/media/aslab/data/matlab/extern/include" -c $< -outdir build/mex
 
 build/mex/%_mex.o: src/%.c
 	$(MATLAB_DIST_PATH)/bin/mex -O CFLAGS="$$CFLAGS -fPIC -std=c99" -c $< -outdir build/mex/$(*D)

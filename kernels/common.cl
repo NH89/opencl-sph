@@ -184,7 +184,7 @@ inline void multiplyBothSides (double d[3], double p[9], double out[6]) {
     //out[S_21] = p[I_20]*d0p10 + p[I_21]*d1p11 + p[I_22]*d2p12;
     out[S_22] = p[I_20]*d0p20 + p[I_21]*d1p21 + p[I_22]*d2p22;
 }
-inline void multiplyAS (double a[9], double s[6], double out[9]) {
+inline void multiplyAS (double a[9], double s[6], global double out[9]) {
     out[I_00] = a[I_00]*s[S_00] + a[I_01]*s[S_10] + a[I_02]*s[S_20];
     out[I_01] = a[I_00]*s[S_01] + a[I_01]*s[S_11] + a[I_02]*s[S_21];
     out[I_02] = a[I_00]*s[S_02] + a[I_01]*s[S_12] + a[I_02]*s[S_22];
@@ -218,12 +218,17 @@ inline void multiplyMatrices (double a[9], double b[9], double out[9]) {
     out[I_21] = a[I_20]*b[I_01] + a[I_21]*b[I_11] + a[I_22]*b[I_21];
     out[I_22] = a[I_20]*b[I_02] + a[I_21]*b[I_12] + a[I_22]*b[I_22];
 }
-inline double3 multiplyMatrixVector (double m[9], double3 v) {
+inline double3 multiplyMatrixVector (global double m[9], double3 v) {
     return (double3)(m[I_00]*v.x + m[I_01]*v.y + m[I_02]*v.z,
                      m[I_10]*v.x + m[I_11]*v.y + m[I_12]*v.z,
                      m[I_20]*v.x + m[I_21]*v.y + m[I_22]*v.z);
 }
-inline double3 multiplySymMatrixVector(double s[6], double3 v) {
+inline double3 multiplyMatrixVectorPrivate (double m[9], double3 v) {
+    return (double3)(m[I_00]*v.x + m[I_01]*v.y + m[I_02]*v.z,
+                     m[I_10]*v.x + m[I_11]*v.y + m[I_12]*v.z,
+                     m[I_20]*v.x + m[I_21]*v.y + m[I_22]*v.z);
+}
+inline double3 multiplySymMatrixVector(global double s[6], double3 v) {
     return (double3)(s[S_00]*v.x + s[S_01]*v.y + s[S_02]*v.z,
                      s[S_10]*v.x + s[S_11]*v.y + s[S_12]*v.z,
                      s[S_20]*v.x + s[S_21]*v.y + s[S_22]*v.z);
@@ -258,7 +263,7 @@ inline void jacobi (private double i[6], double threshold, uint iterations, priv
     for (uint ix = 0; ix < 6; ++ix) temp[ix] = i[ix];
 
     uint i_max = maxAbsInArray(tempoff, 3)+3;
-    
+
     while ((_iterations < iterations) || (threshold > 0 && fabs(i[i_max]) > threshold)) {
         givensRotateToZero(temp, p, i_max, temp2, p2);
 
@@ -273,7 +278,7 @@ inline void jacobi (private double i[6], double threshold, uint iterations, priv
 
     for (uint ix = 0; ix < 6; ++ix) o[ix] = temp[ix];
 }
-inline void getR (double apq[9], double r[9]) {
+inline void getR (double apq[9], global double r[9]) {
     double p[9];
 
     double s[6] = { apq[I_00]*apq[I_00] + apq[I_10]*apq[I_10] + apq[I_20]*apq[I_20],
@@ -292,7 +297,7 @@ inline void getR (double apq[9], double r[9]) {
 
     double temp[6];
 
-    multiplyBothSides(eigenvalues, eigenvectors, temp); 
+    multiplyBothSides(eigenvalues, eigenvectors, temp);
 
     multiplyAS(apq, temp, r);
 }
@@ -436,7 +441,7 @@ kernel void prefix_sum (PSO_ARGS, local uint * temp, uint array_size, global uin
         stride <<= 1;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
-     
+
     if (i == 0) temp[n - 1] = 0;
 
     for (uint d = 1; d < n; d <<= 1) {
@@ -625,4 +630,3 @@ kernel void step_forward (PSO_ARGS) {
     vstore3(pnext, i, position);
     vstore3(vnext, i, velocity);
 }
-

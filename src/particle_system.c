@@ -84,6 +84,40 @@ void display_psdata(psdata data, const char * const * mask) {
     }
 }
 
+void set_constraints(psdata data)
+{
+
+    //Constraints are set the similar way which set in the go_test.m file
+    for (size_t field = 0; field < data.num_fields; ++field) {
+
+        char *name = data.names + data.names_offsets[field];
+        double* position;
+
+        if (strcmp(name, "plane_constraints_particles") == 0) {
+            unsigned int d0 = (data.dimensions + data.dimensions_offsets[field])[0];
+            for (size_t i = 0; i < d0; ++i)
+            {
+                unsigned int value = *(unsigned int*)((char*)data.data + data.data_offsets[field] + i*data.entry_sizes[field]);
+
+                PS_GET_FIELD(data, "position", double, &position);
+
+                int position_field = get_field_psdata(data, "position");
+
+                double positionz  = *(double*)((char*)data.data + data.data_offsets[position_field] + (i*2 + d0)*data.entry_sizes[position_field]);
+
+                if(positionz == -1)
+                {
+                    *(unsigned int *) ((char *) data.data + data.data_offsets[field] + i * data.entry_sizes[field]) = 1;
+                }
+                else if (positionz == 1)
+                {
+                    *(unsigned int *) ((char *) data.data + data.data_offsets[field] + i * data.entry_sizes[field]) = 2;
+                }
+            }
+        }
+    }
+}
+
 void write_psdata(psdata data, int number, const char* Case)
 {
 

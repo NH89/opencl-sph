@@ -22,7 +22,6 @@ plane_constraints_particles = uint32(plane_constraints_particles);
 r = [1 0 0; 0 cos(-0.02) -sin(-0.02); 0 sin(-0.02) cos(-0.02)];
 position = r*position;
 
-
 setstate('position', position, 'n', n, 'originalpos', originalposition,...
          'plane_constraints_particles', plane_constraints_particles);
 

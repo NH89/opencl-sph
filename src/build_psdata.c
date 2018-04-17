@@ -520,8 +520,7 @@ static psdata_field_spec * sort_field_spec_list_by_type_size_descending(psdata_f
     return reordered;
 }
 
-// Constraints for
-//void setUpConstraints()
+
 
 void build_psdata_from_string(psdata * data, const char * string) {
     char * string_copy = malloc((strlen(string)+1) * sizeof(char));

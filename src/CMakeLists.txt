@@ -17,4 +17,7 @@ target_link_libraries(opencl_sph opencl_sph_lib ${OpenCL_LIBRARY} m) # m is a ma
 add_executable(testStretchSolids  testStretchSolid.c)
 target_link_libraries(testStretchSolids opencl_sph_lib ${OpenCL_LIBRARY} m) # m is a math library
 
-install(TARGETS opencl_sph testStretchSolids DESTINATION bin/)
+add_executable(testFluid  testFluid.c)
+target_link_libraries(testFluid opencl_sph_lib ${OpenCL_LIBRARY} m) # m is a math library
+
+install(TARGETS opencl_sph testStretchSolids testFluid DESTINATION bin/)

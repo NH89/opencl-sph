@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
     set_log_level(1);
     psdata data;
 
-    load_config(CMAKE_SOURCE_DIR "/conf/solidstretch.conf");
+    load_config(CMAKE_SOURCE_DIR "/conf/fluid.conf");
 
     build_psdata_from_string(&data, get_config_section("psdata_specification"));
 
@@ -40,49 +40,34 @@ int main(int argc, char *argv[])
     REAL * rotation;
     uint numSteps = 2000;
 
-    PS_GET_FIELD(data, "position", REAL, &position);
-    PS_GET_FIELD(data, "originalpos", REAL, &originalpos);
-    PS_GET_FIELD(data, "density0", REAL, &density0);
-    PS_GET_FIELD(data, "rotation", REAL, &rotation);
 
-    int positionIndex = get_field_psdata(data, "position");
-    int constraintIndex = get_field_psdata(data, "plane_constraints_particles");
 
     init_opencl();
     psdata_opencl pso = create_psdata_opencl(&data, get_config_section("opencl_kernel_files"));
-    populate_position_cuboid_device_opencl(pso, -1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 6, 6, 6);
-
-    sync_psdata_field_device_to_host(data, pso, positionIndex);
-    set_constraints(data);
-    sync_psdata_field_host_to_device(data, pso, constraintIndex);
+    populate_position_cuboid_device_opencl(pso, -1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 8, 8, 8);
 
     //display_psdata(data, NULL);
 
     // for some reason work group size is zero after this, but 512 for others later.
-    call_for_all_particles_device_opencl(pso, "init_original_position");
+    //call_for_all_particles_device_opencl(pso, "init_original_position");
 
     //rotate_particles_device_opencl(pso, PI/4, 0, PI/6);
 
     for(int i = 0; i<numSteps;i++)
     {
-            call_for_all_particles_device_opencl(pso, "apply_plane_constraints");
 
             compute_particle_bins_device_opencl(pso);
 
-            call_for_all_particles_device_opencl(pso, "compute_original_density");
+            //call_for_all_particles_device_opencl(pso, "compute_original_density");
 
             call_for_all_particles_device_opencl(pso, "compute_density");
 
-            call_for_all_particles_device_opencl(pso, "compute_rotations_and_strains");
-
-            call_for_all_particles_device_opencl(pso, "compute_stresses");
-
-            call_for_all_particles_device_opencl(pso, "compute_forces_solids");
+            call_for_all_particles_device_opencl(pso, "compute_forces_fluids");
 
             call_for_all_particles_device_opencl(pso, "step_forward");
 
             sync_psdata_device_to_host(data, pso);
-            write_psdata(data, i, "solidstretch");
+            write_psdata(data, i, "fluid");
     }
 
     free_psdata_opencl(&pso);

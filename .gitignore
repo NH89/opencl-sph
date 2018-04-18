@@ -6,3 +6,9 @@ Makefile
 *.cmake
 *.a
 *.csv
+
+\.idea/
+
+build2/
+
+cmake-build-debug/

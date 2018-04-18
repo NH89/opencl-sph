@@ -29,7 +29,7 @@ static Platform const * _platforms;
 static unsigned int _num_platforms;
 
 // static targets to be replaced in later versions.
-static int target_platform = 1; //1 for Bracewell
+static int target_platform = 0; //1 for Bracewell
 static int target_device = 0; // 0,1,2,3 for Bracewell
 
 #ifdef MATLAB_MEX_FILE
@@ -757,6 +757,25 @@ void sync_psdata_fields_host_to_device(psdata data, psdata_opencl pso, size_t nu
         HANDLE_CL_ERROR(clEnqueueWriteBuffer(_command_queues[0], pso.data, CL_FALSE, data.data_offsets[f],
                                              data.data_sizes[f], (char*) data.data + data.data_offsets[f], 0, NULL, NULL));
     }
+
+    HANDLE_CL_ERROR(clFinish(_command_queues[0]));
+}
+
+void sync_psdata_field_host_to_device(psdata data, psdata_opencl pso, int field_number)
+{
+
+    HANDLE_CL_ERROR(clEnqueueWriteBuffer(_command_queues[0], pso.data, CL_FALSE, data.data_offsets[field_number],
+                                         data.data_sizes[field_number], (char*) data.data + data.data_offsets[field_number], 0, NULL, NULL));
+
+    HANDLE_CL_ERROR(clFinish(_command_queues[0]));
+}
+
+void sync_psdata_field_device_to_host(psdata data, psdata_opencl pso, int field_number)
+{
+
+    HANDLE_CL_ERROR(clEnqueueReadBuffer(_command_queues[0], pso.data, CL_FALSE, data.data_offsets[field_number],
+                                         data.data_sizes[field_number], (char*) data.data + data.data_offsets[field_number], 0, NULL, NULL));
+
 
     HANDLE_CL_ERROR(clFinish(_command_queues[0]));
 }

@@ -40,11 +40,14 @@ void free_stored_psdata() {
 #endif
 
 void display_entry(psdata data, size_t offset, size_t size) {
-    if (size == 8) {
-        note(2, "%g, ", *((REAL*)((char*)data.data + offset)));
-    } else if (size == 4) {
+    if (size == 4) {
+        note(2, "%f, ", *((REAL*)((char*)data.data + offset)));
         note(2, "%u, ", *((unsigned int*)((char*)data.data + offset)));
     }
+    /*else if (size == 4) {
+        note(2, "%u, ", *((unsigned int*)((char*)data.data + offset)));
+    }
+    */
 }
 
 void display_psdata(psdata data, const char * const * mask) {
@@ -103,13 +106,13 @@ void set_constraints(psdata data)
 
                 int position_field = get_field_psdata(data, "position");
 
-                double positionz  = *(double*)((char*)data.data + data.data_offsets[position_field] + (i*2 + d0)*data.entry_sizes[position_field]);
+                REAL positiony  = *(REAL *)((char*)data.data + data.data_offsets[position_field] + (3*i + 1)*data.entry_sizes[position_field]);
 
-                if(positionz == -1)
+                if(positiony == -1)
                 {
                     *(unsigned int *) ((char *) data.data + data.data_offsets[field] + i * data.entry_sizes[field]) = 1;
                 }
-                else if (positionz == 1)
+                else if (positiony == 1)
                 {
                     *(unsigned int *) ((char *) data.data + data.data_offsets[field] + i * data.entry_sizes[field]) = 2;
                 }
@@ -135,9 +138,10 @@ void write_psdata(psdata data, int number, const char* Case)
         {
 
             char filename[150];
-            //strcpy(filename, "/media/aslab/data/hackthon_data/");
-            //strcat(filename, Case);
-            strcpy(filename, "position_");
+            strcpy(filename,CMAKE_SOURCE_DIR);
+            strcat(filename, "/output/");
+            strcat(filename, Case);
+            strcat(filename, "/position_");
             strcat(filename, snum);
             strcat(filename, ".csv");
 

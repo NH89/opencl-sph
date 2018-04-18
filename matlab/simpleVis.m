@@ -5,7 +5,7 @@ clc;
 
 addpath(genpath('..'));
 
-path = '../positions/';
+path = '/home/aslab/Desktop/hackthon/opencl-sph/positions_fl/';
 
 pause on;
 
@@ -16,7 +16,7 @@ for i =1:2000
     M = M(1:noOfParticles,1:3);
     scatter3(M(:,1), M(:,2), M(:,3), 'filled');
     axis([-2 2 -2 2 -2 2]);
-    view(43,1)
+    %view(0,0)
 
     drawnow;
 end

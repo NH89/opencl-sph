@@ -12,6 +12,7 @@
 #include "../particle_system.h"
 #include "../note.h"
 #include "platforminfo.h"
+#include "../microbenchmark.h"
 
 #define NUM_PS_ARGS 10
 
@@ -172,6 +173,8 @@ void call_kernel_device_opencl(psdata_opencl pso, const char * kernel_name, cl_u
                                const size_t * global_work_offset, const size_t * global_work_size,
                                const size_t * local_work_size)
 {
+	timeInit(call_kernel_device_opencl)
+	timeStart(call_kernel_device_opencl)
     cl_kernel kernel = get_kernel(pso, kernel_name);
 
     ASSERT(kernel != NULL);
@@ -182,6 +185,7 @@ void call_kernel_device_opencl(psdata_opencl pso, const char * kernel_name, cl_u
                                            global_work_size, NULL, 0, NULL, NULL));
 
     HANDLE_CL_ERROR(clFinish(_command_queues[0]));
+	timeStopS(call_kernel_device_opencl, kernel_name)
 }
 
 void build_program(psdata * data, psdata_opencl * pso, const char * file_list)
@@ -340,6 +344,8 @@ static void zero_gridcount_device_opencl(psdata_opencl pso)
 
 static void bin_and_count_device_opencl(psdata_opencl pso)
 {
+	timeInit(bin_and_count_device_opencl)
+	timeStart(bin_and_count_device_opencl)
     unsigned int * pnum_ptr;
 
     PS_GET_FIELD(pso.host_psdata, "pnum", unsigned int, &pnum_ptr)
@@ -364,10 +370,13 @@ static void bin_and_count_device_opencl(psdata_opencl pso)
                                            NULL, &num_p_workitems, &pso.po2_workgroup_size, 0, NULL, NULL));
 
     HANDLE_CL_ERROR(clFinish(_command_queues[0]));
+	timeStop(bin_and_count_device_opencl)
 }
 
 static void prefix_sum_device_opencl(psdata_opencl pso)
 {
+	timeInit(prefix_sum_device_opencl)
+	timeStart(prefix_sum_device_opencl)
     cl_kernel prefix_sum = get_kernel(pso, "prefix_sum");
 
     ASSERT(prefix_sum != NULL);
@@ -379,10 +388,13 @@ static void prefix_sum_device_opencl(psdata_opencl pso)
                                                &num_work_items, &pso.po2_workgroup_size, 0, NULL, NULL));
 
     HANDLE_CL_ERROR(clFinish(_command_queues[0]));
+	timeStop(prefix_sum_device_opencl)
 }
 
 static void copy_celloffset_to_backup_device_opencl(psdata_opencl pso)
 {
+	timeInit(copy_celloffset_to_backup_device_opencl)
+	timeStart(copy_celloffset_to_backup_device_opencl)
     cl_kernel copy_celloffset_to_backup = get_kernel(pso, "copy_celloffset_to_backup");
 
     ASSERT(copy_celloffset_to_backup != NULL);
@@ -392,10 +404,13 @@ static void copy_celloffset_to_backup_device_opencl(psdata_opencl pso)
     HANDLE_CL_ERROR(clEnqueueNDRangeKernel(_command_queues[0], copy_celloffset_to_backup, 1, NULL, &num_work_items, &pso.po2_workgroup_size, 0, NULL, NULL));
 
     HANDLE_CL_ERROR(clFinish(_command_queues[0]));
+	timeStop(copy_celloffset_to_backup_device_opencl)
 }
 
 static void insert_particles_in_bin_array_device_opencl(psdata_opencl pso)
 {
+	timeInit(insert_particles_in_bin_array_device_opencl)
+	timeStart(insert_particles_in_bin_array_device_opencl)
     int * pnum_ptr;
 
     PS_GET_FIELD(pso.host_psdata, "pnum", int, &pnum_ptr);
@@ -411,6 +426,7 @@ static void insert_particles_in_bin_array_device_opencl(psdata_opencl pso)
     HANDLE_CL_ERROR(clEnqueueNDRangeKernel(_command_queues[0], insert_particles_in_bin_array, 1, NULL, &num_work_items, &pso.po2_workgroup_size, 0, NULL, NULL));
 
     HANDLE_CL_ERROR(clFinish(_command_queues[0]));
+	timeStop(insert_particles_in_bin_array_device_opencl)
 }
 
 void compute_particle_bins_device_opencl(psdata_opencl pso)
@@ -423,6 +439,8 @@ void compute_particle_bins_device_opencl(psdata_opencl pso)
 
 void compute_density_device_opencl(psdata_opencl pso)
 {
+	timeInit(compute_density_device_opencl)
+	timeStart(compute_density_device_opencl)
     unsigned int * n_ptr;
 
     PS_GET_FIELD(pso.host_psdata, "n", unsigned int, &n_ptr);
@@ -440,10 +458,13 @@ void compute_density_device_opencl(psdata_opencl pso)
                                            &num_workitems, &pso.po2_workgroup_size, 0, NULL, NULL));
 
     HANDLE_CL_ERROR(clFinish(_command_queues[0]));
+	timeStop(compute_density_device_opencl)
 }
 
 void compute_forces_device_opencl(psdata_opencl pso)
 {
+	timeInit(compute_forces_device_opencl)
+	timeStart(compute_forces_device_opencl)
     unsigned int * n_ptr;
 
     PS_GET_FIELD(pso.host_psdata, "n", unsigned int, &n_ptr);
@@ -460,10 +481,13 @@ void compute_forces_device_opencl(psdata_opencl pso)
                                            &num_workitems, &pso.po2_workgroup_size, 0, NULL, NULL));
 
     HANDLE_CL_ERROR(clFinish(_command_queues[0]));
+	timeStop(compute_forces_device_opencl)
 }
 
 void step_forward_device_opencl(psdata_opencl pso)
 {
+	timeInit(step_forward_device_opencl)
+	timeStart(step_forward_device_opencl)
     unsigned int * n_ptr;
 
     PS_GET_FIELD(pso.host_psdata, "n", unsigned int, &n_ptr);
@@ -480,6 +504,7 @@ void step_forward_device_opencl(psdata_opencl pso)
                                            &num_workitems, &pso.po2_workgroup_size, 0, NULL, NULL));
 
     HANDLE_CL_ERROR(clFinish(_command_queues[0]));
+	timeStop(step_forward_device_opencl)
 }
 
 void call_for_all_particles_device_opencl(psdata_opencl pso, const char * kernel_name)
@@ -501,6 +526,8 @@ void populate_position_cuboid_device_opencl(psdata_opencl pso,
                                             unsigned int ysize,
                                             unsigned int zsize)
 {
+	timeInit(populate_position_cuboid_device_opencl)
+	timeStart(populate_position_cuboid_device_opencl)
     size_t work_group_edge = (size_t) pow
         ((REAL) _platforms[target_platform].devices[target_device].max_workgroup_size, 1.0/3.0);//replaced [0] with [target_platform] ... [target_device]
     size_t local_work_size[] = { work_group_edge, work_group_edge, work_group_edge };
@@ -524,10 +551,13 @@ void populate_position_cuboid_device_opencl(psdata_opencl pso,
                                            global_work_size, local_work_size,
                                            0, NULL, NULL));
     HANDLE_CL_ERROR(clFinish(_command_queues[0]));
+	timeStop(populate_position_cuboid_device_opencl)
 }
 
 void rotate_particles_device_opencl(psdata_opencl pso, REAL angle_x, REAL angle_y, REAL angle_z)
 {
+	timeInit(rotate_particles_device_opencl)
+	timeStart(rotate_particles_device_opencl)
     unsigned int * pN;
 
     PS_GET_FIELD(pso.host_psdata, "n", unsigned int, &pN);
@@ -550,6 +580,7 @@ void rotate_particles_device_opencl(psdata_opencl pso, REAL angle_x, REAL angle_
                                            0, NULL, NULL));
 
     HANDLE_CL_ERROR(clFinish(_command_queues[0]));
+	timeStop(rotate_particles_device_opencl)
 }
 
 /**

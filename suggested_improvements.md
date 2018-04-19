@@ -3,3 +3,4 @@
 * JSON configuration files for runtime parameters
 * Get cumulative times from OpenCL function calls **call_for_all_particles_device_opencl**
 * Fix indentation issues in testopencl.c
+* Get target platform and device id from command line or configuration file

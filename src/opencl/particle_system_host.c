@@ -90,10 +90,9 @@ printf("chk4.2 ");
 
     HANDLE_CL_ERROR(error);
 
-    _command_queues     = malloc(_platforms[target_platform].num_devices*sizeof(cl_command_queue)); // replaced [0] with target_platform
-    _num_command_queues = _platforms[target_platform].num_devices; // replaced [0] with [target_platform]
-
+    _num_command_queues = _platforms[target_platform].num_devices;
     ASSERT(_num_command_queues > 0);
+    _command_queues     = malloc(_num_command_queues*sizeof(cl_command_queue));
     
     // JD added, determine max worker size during long time to avoid crashing on Intel Integrated GPU  
 
@@ -101,10 +100,10 @@ printf("chk4.2 ");
 
     // Find the maximum dimensions of the work-groups
     cl_uint num; 
-    clGetDeviceInfo(devices[0], CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, sizeof(cl_uint), &num, NULL);
+    clGetDeviceInfo(devices[target_device], CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, sizeof(cl_uint), &num, NULL);
     // Get the max. dimensions of the work-groups
     size_t dims[num];
-    clGetDeviceInfo(devices[0], CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(dims), &dims, NULL);
+    clGetDeviceInfo(devices[target_device], CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(dims), &dims, NULL);
     max_work_item_size = dims[0]; // For now just take the first dimension;
     printf("The Device specific maximum work item size is %u \n", dims[0]);
   

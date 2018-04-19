@@ -358,15 +358,14 @@ static void bin_and_count_device_opencl(psdata_opencl pso)
 
     ASSERT(find_particle_bins != NULL && count_particles_in_bins != NULL);
 
+    zero_gridcount_device_opencl(pso);
+
     HANDLE_CL_ERROR(clEnqueueNDRangeKernel(_command_queues[0], find_particle_bins, 1,
                                            NULL, &num_p_workitems, &pso.po2_workgroup_size, 0, NULL, NULL));
 
-    HANDLE_CL_ERROR(clFinish(_command_queues[0]));
-
-    zero_gridcount_device_opencl(pso);
-
-    HANDLE_CL_ERROR(clEnqueueNDRangeKernel(_command_queues[0], count_particles_in_bins, 1,
-                                           NULL, &num_p_workitems, &pso.po2_workgroup_size, 0, NULL, NULL));
+	// functionality contained in find_particle_bins
+    /* HANDLE_CL_ERROR(clEnqueueNDRangeKernel(_command_queues[0], count_particles_in_bins, 1, */
+    /*                                        NULL, &num_p_workitems, &pso.po2_workgroup_size, 0, NULL, NULL)); */
 
     HANDLE_CL_ERROR(clFinish(_command_queues[0]));
 	timeStop(bin_and_count_device_opencl)

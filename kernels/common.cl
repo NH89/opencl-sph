@@ -372,6 +372,7 @@ kernel void find_particle_bins (PSO_ARGS) {
                      (uint3) (gridres[0]-1, gridres[1]-1, gridres[2]-1));
 
     gridcell[i] = gc.z * gridres[0] * gridres[1] + gc.y * gridres[0] + gc.x;
+    atomic_inc (&gridcount[gridcell[i]]);
 }
 kernel void zero_gridcount (PSO_ARGS) {
     USE_FIELD(gridcount, uint) USE_FIELD(gridres, uint)

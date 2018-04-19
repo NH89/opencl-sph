@@ -1,3 +1,5 @@
+## Suggested improvements
+
 * Data structure uses integer offsets, may cause an overflow with large memory allocations
 	* Suggest using **cl_long** or **cl_ulong** for offsets instead of unsigned int 
 * JSON configuration files for runtime parameters

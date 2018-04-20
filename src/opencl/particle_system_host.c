@@ -27,7 +27,8 @@ static unsigned int _num_platforms;
 
 // static targets to be replaced in later versions.
 static int target_platform = 1; //1 for Bracewell
-static int target_device = 0; // 0,1,2,3 for Bracewell
+static cl_device_id * _device_ids; // Dirty solution at the moment 
+//static int target_device = 0; // 0,1,2,3 for Bracewell
 
 #ifdef MATLAB_MEX_FILE
 static psdata_opencl _pso;
@@ -37,7 +38,7 @@ char * add_field_macros_to_start_of_string(const char * string, psdata * data);
 
 #ifdef MATLAB_MEX_FILE
 psdata_opencl * get_stored_psdata_opencl()
-{
+{thaloand com
     return &_pso;
 }
 
@@ -53,12 +54,11 @@ void free_stored_psdata_opencl() {
  *
  * Detects hardware, creates command queues
  */
-void init_opencl()
+uint init_opencl()
 {
     if (_ready) return;
 
     get_opencl_platform_info(&_platforms, &_num_platforms);
-printf("chk4.1 ");
 note(1, "\n");
     ASSERT(_num_platforms > 0);
 
@@ -67,7 +67,6 @@ note(1, "\n");
     };
 
     cl_int error;
-printf("chk4.2 ");
     /*_context = clCreateContextFromType  // not working on Bracewell. Reason ?
         ( (const cl_context_properties*) context_properties,
           CL_DEVICE_TYPE_GPU, contextErrorCallback, NULL, &error ); */
@@ -101,24 +100,28 @@ printf("chk4.2 ");
       size_t dims[num];
       clGetDeviceInfo(devices[i], CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(dims), &dims, NULL);
       _max_work_item_size[i] = dims[0]; // For now just take the first dimension
+      // TODO Remove when stable 
       printf("\nThe Runtime determined specific maximum work item size is %u \n", dims[0]);
 
 
     }
 
-printf("chk4.3 ");
     unsigned int i;
+    // Command Queue for every device 
     for (i = 0; i < _num_command_queues; ++i) {
         _command_queues[i] = clCreateCommandQueue
             ( _context, devices[i], // may need _platforms[1] for nvidia, [0]=>CPU
               CL_QUEUE_PROFILING_ENABLE, &error );
-printf("chk4.4 ");
         HANDLE_CL_ERROR(error);
     }
 
     _ready = 1;
+    
+    // Return Info for cl program
+    return num_devices;
 }
 
+/* This function builds all kernels from compiled program back to pso */
 static void create_kernels(psdata_opencl * pso)
 {
     size_t kernel_names_size;
@@ -134,39 +137,50 @@ static void create_kernels(psdata_opencl * pso)
     note(1, "%s\n", kernel_names);
 
     pso->kernel_names = malloc(pso->num_kernels*sizeof(char*));
-    pso->kernels = malloc(pso->num_kernels*sizeof(cl_kernel));
+    for (size_t device_i; device_i < pso->num_devices;device_i ++){
+      pso->device_mems[device_i].kernels = malloc(pso->num_kernels*sizeof(cl_kernel));
+      pso->device_mems[device_i].num_kernels = pso->num_kernels;
+      
+      // Just point to same adress probably bad example 
+      pso->device_mems[device_i].kernel_names = malloc(pso->num_kernels*sizeof(char*));
+      pso->device_mems[device_i].kernel_names = pso-> kernel_names;
+      
+      char * kernel_names_ptr = (char*) kernel_names;
 
-    char * kernel_names_ptr = (char*) kernel_names;
+      strtok(kernel_names_ptr, ";");
 
-    strtok(kernel_names_ptr, ";");
+      for (size_t i = 0; i < pso->num_kernels; ++i) {
+	  char ** kernel_name_ptr = (char**) pso->kernel_names + i;
 
-    for (size_t i = 0; i < pso->num_kernels; ++i) {
-        char ** kernel_name_ptr = (char**) pso->kernel_names + i;
+	  *kernel_name_ptr = malloc((strlen(kernel_names_ptr)+1)*sizeof(char));
+	  strcpy(*kernel_name_ptr, kernel_names_ptr);
 
-        *kernel_name_ptr = malloc((strlen(kernel_names_ptr)+1)*sizeof(char));
-        strcpy(*kernel_name_ptr, kernel_names_ptr);
+	  note(1, "%s, ", pso->kernel_names[i]);
 
-        note(1, "%s, ", pso->kernel_names[i]);
+	  cl_int error;
 
-        cl_int error;
+	  *((cl_kernel*) pso->device_mems[device_i].kernels + i) = clCreateKernel(pso->ps_prog, pso->kernel_names[i], &error); HANDLE_CL_ERROR(error);
 
-        *((cl_kernel*) pso->kernels + i) = clCreateKernel(pso->ps_prog, pso->kernel_names[i], &error); HANDLE_CL_ERROR(error);
-
-        kernel_names_ptr = strtok(NULL, ";");
+	  kernel_names_ptr = strtok(NULL, ";");
+      }
+  
+      note(1, "\n");
+      
+      
     }
-
-    note(1, "\n");
 }
 
-cl_kernel get_kernel(psdata_opencl pso, const char * name)
+/* grep the desired function from cl file */
+cl_kernel get_kernel(device_mem device, const char * name)
 {
-    for (size_t i = 0; i < pso.num_kernels; ++i) {
-        if (strcmp(name, pso.kernel_names[i]) == 0) return pso.kernels[i];
+    for (size_t i = 0; i < device.num_kernels; ++i) {
+        if (strcmp(name, device.kernel_names[i]) == 0) return device.kernels[i];
     }
 
     return NULL;
 }
 
+/*Call kernel onto specific device by enqueue*/
 void call_kernel_device_opencl(psdata_opencl pso, const unsigned int & device_i, const char * kernel_name, cl_uint work_dim,
                                const size_t * global_work_offset, const size_t * global_work_size,
                                const size_t * local_work_size)
@@ -183,6 +197,7 @@ void call_kernel_device_opencl(psdata_opencl pso, const unsigned int & device_i,
     HANDLE_CL_ERROR(clFinish(_command_queues[device_i]));
 }
 
+/*Compile kernel */
 void build_program(psdata * data, psdata_opencl * pso, const char * file_list)
 {
     cl_int error;
@@ -267,7 +282,20 @@ void build_program(psdata * data, psdata_opencl * pso, const char * file_list)
     }
 
 	const char* buildDefines = "-DOPENCL_SPH_REAL_TYPE=" STRINGIFY(OPENCL_SPH_REAL_TYPE);
-    cl_int build_error = clBuildProgram(pso->ps_prog, 1, &_platforms[target_platform].devices[target_device].id, buildDefines, NULL, NULL); // replaced [0] with [target_platform]..[target_device]
+	cl_uint num_devices;
+	clGetDeviceIDs(_platforms[target_platform],
+                       CL_DEVICE_TYPE_ALL,
+                       0,
+                       NULL,
+                       &num_devices);
+        _device_ids = malloc(num_devices*sizeof(cl_device_id);
+        clGetDeviceIDs(_platforms[target_platform],
+                       CL_DEVICE_TYPE_ALL,
+                       num_devices,
+                       _device_ids,
+                       NULL);
+
+    cl_int build_error = clBuildProgram(pso->ps_prog, 1, _device_ids, buildDefines, NULL, NULL); // replaced [0] with [target_platform]..[target_device]
 
     if (build_error != CL_SUCCESS) {
         char * error_log;
@@ -325,6 +353,7 @@ char * add_field_macros_to_start_of_string(const char * string, psdata * data)
     return newstring;
 }
 
+/* call zero_gridcount */ 
 static void zero_gridcount_device_opencl(psdata_opencl pso)
 {
     unsigned int * gridres;
@@ -414,9 +443,17 @@ static void insert_particles_in_bin_array_device_opencl(psdata_opencl pso)
 
 void compute_particle_bins_device_opencl(psdata_opencl pso)
 {
+  // Counting Sort implementation, particles are arranged by bin index 
+  
+  // Bin and count for all particles within current system
     bin_and_count_device_opencl(pso);
+ 
+  // TODO Prefix computation can be done in a optimal way to save time   
     prefix_sum_device_opencl(pso);
+      
     copy_celloffset_to_backup_device_opencl(pso);
+    
+  // Produce the desired RNN structure   
     insert_particles_in_bin_array_device_opencl(pso);
 }
 
@@ -500,6 +537,7 @@ void populate_position_cuboid_device_opencl(psdata_opencl pso,
                                             unsigned int ysize,
                                             unsigned int zsize)
 {
+
     size_t work_group_edge = (size_t) pow
         ((REAL) _platforms[target_platform].devices[target_device].max_workgroup_size, 1.0/3.0);
     size_t local_work_size[] = { work_group_edge, work_group_edge, work_group_edge };
@@ -560,15 +598,16 @@ void rotate_particles_device_opencl(psdata_opencl pso, REAL angle_x, REAL angle_
  * @param data The host buffer to copy
  * @return Buffer list referencing the newly created device side buffer
  */
-psdata_opencl create_psdata_opencl(psdata * data, const char * file_list)
+psdata_opencl create_psdata_opencl(psdata * data, const char * file_list, const uint & num_dev)
 {
     psdata_opencl pso;
 
     pso.host_psdata = *data;
 
+    pso.device_mems = device_mem[num_dev];
     cl_mem_flags flags = CL_MEM_COPY_HOST_PTR;
 
-    cl_int error;
+    cl_int error; 
 
     unsigned int nf = data->num_fields;
 
@@ -602,11 +641,12 @@ psdata_opencl create_psdata_opencl(psdata * data, const char * file_list)
 
     pso.num_grid_cells = gridres[0]*gridres[1]*gridres[2];
 
-    pso.po2_workgroup_size = max_work_item_size[device_i];
+    pso.po2_workgroup_size = _max_work_item_size[device_i];
 
-    pso.num_blocks = (pso.num_grid_cells - 1) / (2*max_work_item_size[device_i]) + 1;
+    pso.num_blocks = (pso.num_grid_cells - 1) / (2*_max_work_item_size[device_i]) + 1;
 
     build_program(data, &pso, file_list);
+    
     create_kernels(&pso);
 
     pso.block_totals = clCreateBuffer(_context, CL_MEM_READ_WRITE, pso.num_blocks*sizeof(unsigned int), NULL, &error);
@@ -632,76 +672,91 @@ void opencl_use_buflist(psdata_opencl pso)
 }
 #endif
 
-void assign_pso_kernel_args(psdata_opencl pso)
+void assign_device_kernel_args(device_mem device)
 {
-    for (size_t i = 0; i < pso.num_kernels; ++i) {
-        set_kernel_args_to_pso(pso, pso.kernels[i]);
+    for (size_t i = 0; i < device.num_kernels; ++i) {
+        set_kernel_args_to_device(device, device.kernels[i]);
     }
 
-    cl_kernel prefix_sum = get_kernel(pso, "prefix_sum");
+    cl_kernel prefix_sum = get_kernel(device, "prefix_sum");
 
     ASSERT(prefix_sum != NULL);
 
-    HANDLE_CL_ERROR(clSetKernelArg(prefix_sum, NUM_PS_ARGS, 2*pso.po2_workgroup_size*sizeof(unsigned int), NULL));
-    HANDLE_CL_ERROR(clSetKernelArg(prefix_sum, NUM_PS_ARGS + 1, sizeof(unsigned int), &pso.num_grid_cells));
-    HANDLE_CL_ERROR(clSetKernelArg(prefix_sum, NUM_PS_ARGS + 2, sizeof(cl_mem), &pso.block_totals));
-    HANDLE_CL_ERROR(clSetKernelArg(prefix_sum, NUM_PS_ARGS + 3, sizeof(unsigned int), &pso.num_blocks));
+    HANDLE_CL_ERROR(clSetKernelArg(prefix_sum, NUM_PS_ARGS, 2*device.po2_workgroup_size*sizeof(unsigned int), NULL));
+    HANDLE_CL_ERROR(clSetKernelArg(prefix_sum, NUM_PS_ARGS + 1, sizeof(unsigned int), &device.num_grid_cells));
+    HANDLE_CL_ERROR(clSetKernelArg(prefix_sum, NUM_PS_ARGS + 2, sizeof(cl_mem), &device.block_totals));
+    HANDLE_CL_ERROR(clSetKernelArg(prefix_sum, NUM_PS_ARGS + 3, sizeof(unsigned int), &device.num_blocks));
 
-    cl_kernel copy_celloffset_to_backup = get_kernel(pso, "copy_celloffset_to_backup");
+    cl_kernel copy_celloffset_to_backup = get_kernel(device, "copy_celloffset_to_backup");
 
     ASSERT(copy_celloffset_to_backup != NULL);
 
     HANDLE_CL_ERROR(clSetKernelArg(copy_celloffset_to_backup, NUM_PS_ARGS, sizeof(cl_mem), &pso.backup_prefix_sum));
     HANDLE_CL_ERROR(clSetKernelArg(copy_celloffset_to_backup, NUM_PS_ARGS+1, sizeof(unsigned int), &pso.num_grid_cells));
 
-    cl_kernel insert_particles_in_bin_array = get_kernel(pso, "insert_particles_in_bin_array");
+    cl_kernel insert_particles_in_bin_array = get_kernel(device, "insert_particles_in_bin_array");
 
     ASSERT(insert_particles_in_bin_array != NULL);
 
     HANDLE_CL_ERROR(clSetKernelArg(insert_particles_in_bin_array, NUM_PS_ARGS, sizeof(cl_mem), &pso.backup_prefix_sum));
 }
 
-void set_kernel_args_to_pso(psdata_opencl pso, cl_kernel kernel)
+void set_kernel_args_to_device(device_mem device, cl_kernel kernel)
 {
-    HANDLE_CL_ERROR(clSetKernelArg(kernel, 0, sizeof(unsigned int), &pso.num_fields));
-    HANDLE_CL_ERROR(clSetKernelArg(kernel, 1, sizeof(cl_mem), &pso.names));
-    HANDLE_CL_ERROR(clSetKernelArg(kernel, 2, sizeof(cl_mem), &pso.names_offsets));
-    HANDLE_CL_ERROR(clSetKernelArg(kernel, 3, sizeof(cl_mem), &pso.dimensions));
-    HANDLE_CL_ERROR(clSetKernelArg(kernel, 4, sizeof(cl_mem), &pso.num_dimensions));
-    HANDLE_CL_ERROR(clSetKernelArg(kernel, 5, sizeof(cl_mem), &pso.dimensions_offsets));
-    HANDLE_CL_ERROR(clSetKernelArg(kernel, 6, sizeof(cl_mem), &pso.entry_sizes));
-    HANDLE_CL_ERROR(clSetKernelArg(kernel, 7, sizeof(cl_mem), &pso.data));
-    HANDLE_CL_ERROR(clSetKernelArg(kernel, 8, sizeof(cl_mem), &pso.data_sizes));
-    HANDLE_CL_ERROR(clSetKernelArg(kernel, 9, sizeof(cl_mem), &pso.data_offsets));
+    HANDLE_CL_ERROR(clSetKernelArg(kernel, 0, sizeof(unsigned int), &device.num_fields));
+    HANDLE_CL_ERROR(clSetKernelArg(kernel, 1, sizeof(cl_mem), &device.names));
+    HANDLE_CL_ERROR(clSetKernelArg(kernel, 2, sizeof(cl_mem), &device.names_offsets));
+    HANDLE_CL_ERROR(clSetKernelArg(kernel, 3, sizeof(cl_mem), &device.dimensions));
+    HANDLE_CL_ERROR(clSetKernelArg(kernel, 4, sizeof(cl_mem), &device.num_dimensions));
+    HANDLE_CL_ERROR(clSetKernelArg(kernel, 5, sizeof(cl_mem), &device.dimensions_offsets));
+    HANDLE_CL_ERROR(clSetKernelArg(kernel, 6, sizeof(cl_mem), &device.entry_sizes));
+    HANDLE_CL_ERROR(clSetKernelArg(kernel, 7, sizeof(cl_mem), &device.data));
+    HANDLE_CL_ERROR(clSetKernelArg(kernel, 8, sizeof(cl_mem), &device.data_sizes));
+    HANDLE_CL_ERROR(clSetKernelArg(kernel, 9, sizeof(cl_mem), &device.data_offsets));
 }
 
 /**
  * Release referenced buffer
  */
-void free_psdata_opencl(psdata_opencl * pso)
+void free_psdata_device(device_mem * device)
 {
-    HANDLE_CL_ERROR(clReleaseMemObject(pso->names));
-    HANDLE_CL_ERROR(clReleaseMemObject(pso->names_offsets));
-    HANDLE_CL_ERROR(clReleaseMemObject(pso->dimensions));
-    HANDLE_CL_ERROR(clReleaseMemObject(pso->num_dimensions));
-    HANDLE_CL_ERROR(clReleaseMemObject(pso->dimensions_offsets));
-    HANDLE_CL_ERROR(clReleaseMemObject(pso->entry_sizes));
-    HANDLE_CL_ERROR(clReleaseMemObject(pso->data));
-    HANDLE_CL_ERROR(clReleaseMemObject(pso->data_sizes));
-    HANDLE_CL_ERROR(clReleaseMemObject(pso->data_offsets));
-    HANDLE_CL_ERROR(clReleaseMemObject(pso->block_totals));
+    HANDLE_CL_ERROR(clReleaseMemObject(device->names));
+    HANDLE_CL_ERROR(clReleaseMemObject(device->names_offsets));
+    HANDLE_CL_ERROR(clReleaseMemObject(device->dimensions));
+    HANDLE_CL_ERROR(clReleaseMemObject(device->num_dimensions));
+    HANDLE_CL_ERROR(clReleaseMemObject(device->dimensions_offsets));
+    HANDLE_CL_ERROR(clReleaseMemObject(device->entry_sizes));
+    HANDLE_CL_ERROR(clReleaseMemObject(device->data));
+    HANDLE_CL_ERROR(clReleaseMemObject(device->data_sizes));
+    HANDLE_CL_ERROR(clReleaseMemObject(device->data_offsets));
+    HANDLE_CL_ERROR(clReleaseMemObject(device->block_totals));
 
-    for (size_t i = 0; i < pso->num_kernels; ++i) {
-        HANDLE_CL_ERROR(clReleaseKernel(pso->kernels[i]));
-        free(*((char**) pso->kernel_names + i));
+    for (size_t i = 0; i < device->num_kernels; ++i) {
+        HANDLE_CL_ERROR(clReleaseKernel(device->kernels[i]));
+        free(*((char**) device->kernel_names + i));
     }
 
-    free((void*)pso->kernels);
-    free((void*)pso->kernel_names);
+    free((void*)device->kernels);
+    free((void*)device->kernel_names);
 
-    pso->num_kernels = 0;
+    device->num_kernels = 0;
 
-    HANDLE_CL_ERROR(clReleaseProgram(pso->ps_prog));
+    
+}
+
+/** Release host buffer **/ 
+void free_psdata_opencl(psdata_opencl * pso)
+{
+  free((void*)pso->kernel_names);
+
+  pso->num_kernels = 0;
+
+  HANDLE_CL_ERROR(clReleaseProgram(pso->ps_prog));
+
+  for (size_t i = 0 ; i < num_devices; ++i){
+    free_psdata_device(pso->device_mems[i]);
+  }
+  
 }
 
 /**
@@ -806,7 +861,8 @@ void terminate_opencl()
     }
 
     free(_command_queues);
-    free(max_work_item_size);
+    free(_max_work_item_size);
+    free(_device_ids);
     HANDLE_CL_ERROR(clReleaseContext(_context));
 
     _ready = 0;

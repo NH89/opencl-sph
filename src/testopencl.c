@@ -36,38 +36,38 @@ int main(int argc, char *argv[])
     REAL * originalpos;
     REAL * density0;
     REAL * rotation;
-    uint numSteps = 2000;
+    uint numSteps = 2000; // TODO Make a config variable 
 
     PS_GET_FIELD(data, "position", REAL, &position);
     PS_GET_FIELD(data, "originalpos", REAL, &originalpos);
     PS_GET_FIELD(data, "density0", REAL, &density0);
 
     PS_GET_FIELD(data, "rotation", REAL, &rotation);
-    if (verbose) printf("chk4 ");  
-    init_opencl();
-    if (verbose) printf("chk5 ");  
-        psdata_opencl pso = create_psdata_opencl(&data, get_config_section("opencl_kernel_files"));
-    if (verbose) printf("chk5.1 ");         
+    
+    
+    
+    
+    // Return the result from the opencl hardware probing
+    uint num_dev = init_opencl();
+    
+    // Correspondingly construct the opencl data structure with sub structure   
+    psdata_opencl pso = create_psdata_opencl(&data, get_config_section("opencl_kernel_files"),num_dev);
+    
             populate_position_cuboid_device_opencl(pso, -1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 6, 6, 6);
-    if (verbose) printf("chk5.2 "); // for some reason work group size is zero after this, but 512 for others later.
             call_for_all_particles_device_opencl(pso, "init_original_position");
-    if (verbose) printf("chk5.3 "); 
             rotate_particles_device_opencl(pso, PI/4, 0, PI/6);
-    if (verbose) printf(" chk6 ");  
-for(int i = 0; i<numSteps;i++)
+ for(int i = 0; i<numSteps;i++)
    {
+	    // The multi GPU version must include communication step, update counts 
             compute_particle_bins_device_opencl(pso);
-    if (verbose) printf(" chk7 ");  
+
+	    // The multi GPU version must include a communication step, update data 
             call_for_all_particles_device_opencl(pso, "compute_original_density");
             call_for_all_particles_device_opencl(pso, "compute_density");
-    if (verbose) printf(" chk8 "); 
             call_for_all_particles_device_opencl(pso, "compute_rotations_and_strains");
-    if (verbose) printf(" chk9 "); 
             call_for_all_particles_device_opencl(pso, "compute_stresses");
             call_for_all_particles_device_opencl(pso, "compute_forces_solids");
-    if (verbose) printf(" chk10 "); 
             call_for_all_particles_device_opencl(pso, "step_forward");
-        
             sync_psdata_device_to_host(data, pso);
 	    write_psdata(data, i, "solid");
 }

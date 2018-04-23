@@ -647,3 +647,34 @@ kernel void step_forward (PSO_ARGS) {
     vstore3(pnext, i, position);
     vstore3(vnext, i, velocity);
 }
+
+
+kernel void view_thresholding (PSO_ARGS)
+{
+
+    USE_FIELD_FIRST_VALUE(n, uint)
+
+    USE_FIELD(position, REAL)
+    USE_FIELD(threshfromview, uint) USE_FIELD_FIRST_VALUE(viewThresh, REAL) USE_FIELD(viewpoint, REAL)
+
+    uint i = get_global_id(0);
+
+    if (i >= n) return;
+
+    REAL3 p = vload3(i, position);
+    REAL3 v = vload3(0, viewpoint);
+
+    REAL3 diff = p - v;
+
+    REAL dist = length(diff);
+
+    if(dist>viewThresh)
+    {
+        vstore(1.0,i,threshfromview);
+    }
+    else
+    {
+        vstore(0,i,threshfromview);
+    }
+
+}

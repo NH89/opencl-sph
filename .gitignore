@@ -12,3 +12,11 @@ Makefile
 build2/
 
 cmake-build-debug/
+
+matlab/fluid3D_images/
+
+matlab/fluidSIDE_images/
+
+matlab/solidSIDE_images/
+
+*.mp4

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
+#include<time.h>
 
 #include "build_psdata.h"
 #include "config.h"
@@ -38,7 +39,7 @@ int main(int argc, char *argv[])
     REAL * density0;
 
     REAL * rotation;
-    uint numSteps = 2000;
+    uint numSteps = 500;
 
 
 
@@ -52,6 +53,8 @@ int main(int argc, char *argv[])
     //call_for_all_particles_device_opencl(pso, "init_original_position");
 
     //rotate_particles_device_opencl(pso, PI/4, 0, PI/6);
+
+    clock_t t1=clock();
 
     for(int i = 0; i<numSteps;i++)
     {
@@ -69,6 +72,10 @@ int main(int argc, char *argv[])
             sync_psdata_device_to_host(data, pso);
             write_psdata(data, i, "fluid");
     }
+
+    clock_t t2=clock();
+
+    printf("The time taken is.. %g ", (t2-t1));
 
     free_psdata_opencl(&pso);
     terminate_opencl();

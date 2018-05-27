@@ -9,7 +9,7 @@ typedef struct {
     psdata host_psdata;
 
     unsigned int num_fields;
-    cl_mem names;
+    cl_mem names;               //Memory objects are described by a cl_mem object. Kernels take memory objects as input, and output to one or more memory objects.
     cl_mem names_offsets;
     cl_mem dimensions;
     cl_mem num_dimensions;

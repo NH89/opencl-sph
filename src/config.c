@@ -4,9 +4,6 @@
 
 #include "macros.h"
 #include "note.h"
-#ifdef MATLAB_MEX_FILE
-    #include "mex.h"
-#endif
 
 #define MAX_SECTIONS 8
 
@@ -16,16 +13,7 @@ static char * g_section_titles[MAX_SECTIONS] = {NULL};
 static char * g_section_starts[MAX_SECTIONS] = {NULL};
 
 void load_config(const char * relativePath) {
-#ifdef MATLAB_MEX_FILE
-    char * exe_path = getenv("EXE_PATH");
-#endif
-
-#ifndef MATLAB_MEX_FILE
     const char * conf_path = relativePath;
-#else
-    char * conf_path = malloc((strlen(exe_path)+strlen(relativePath)+1)*sizeof(char));
-    sprintf(conf_path, "%s%s", exe_path, relativePath);
-#endif
 	printf(" ## opening file %s ", conf_path); // added to check what file is being read //
     // Copy the contents
     FILE * conf = fopen(conf_path, "rb");
@@ -34,10 +22,6 @@ void load_config(const char * relativePath) {
         note(2, "Could not read file %s\n", conf_path);
         ASSERT(0);
     }
-
-#ifdef MATLAB_MEX_FILE
-    free(conf_path);
-#endif
 
     fseek(conf, 0, SEEK_END);
     size_t conf_end = ftell(conf);

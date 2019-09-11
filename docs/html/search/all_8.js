@@ -1,8 +1,0 @@
-var searchData=
-[
-  ['id',['id',['../structDevice.html#ada94aa00c9ab31b8c55bc99061ebfef8',1,'Device::id()'],['../structPlatform.html#a4d149e964a154be9bf66784aa1638d87',1,'Platform::id()']]],
-  ['increment',['increment',['../simulation_8c.html#a903ca74cf4fb051ca36784fd818d4767',1,'increment():&#160;simulation.c'],['../simulation_8h.html#aeb2624c7a86b765725fd80cd426e147d',1,'increment():&#160;simulation.h']]],
-  ['increment_5fposition_5f0_5fdevice_5fopencl',['increment_position_0_device_opencl',['../particle__system__host_8c.html#a913da98edf2caadbdc7e74a2c04a72b9',1,'increment_position_0_device_opencl():&#160;particle_system_host.c'],['../particle__system__host_8h.html#a913da98edf2caadbdc7e74a2c04a72b9',1,'increment_position_0_device_opencl():&#160;particle_system_host.c']]],
-  ['init_5fps_5fopencl',['init_ps_opencl',['../particle__system__host_8c.html#a744914e82d7deaaab9366819f7570ace',1,'init_ps_opencl():&#160;particle_system_host.c'],['../particle__system__host_8h.html#a744914e82d7deaaab9366819f7570ace',1,'init_ps_opencl():&#160;particle_system_host.c']]],
-  ['init_5fpsdata_5ffluid',['init_psdata_fluid',['../particle__system_8c.html#aeea6607d3297e41f5eb21f0401fd8abe',1,'init_psdata_fluid(psdata *data, int pnum, double mass, double timestep, double smoothingradius, double xbound1, double ybound1, double zbound1, double xbound2, double ybound2, double zbound2):&#160;particle_system.c'],['../particle__system_8h.html#aeea6607d3297e41f5eb21f0401fd8abe',1,'init_psdata_fluid(psdata *data, int pnum, double mass, double timestep, double smoothingradius, double xbound1, double ybound1, double zbound1, double xbound2, double ybound2, double zbound2):&#160;particle_system.c']]]
-];

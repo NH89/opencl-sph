@@ -8,7 +8,7 @@
 #include "particle_system.h"
 #include "opencl/particle_system_host.h"
 #include "3rdparty/whereami.h"
-
+#include <CL/cl_ext.h>  ///added for kdevelop
 #define PI 3.1415926535
 
 void printFieldOffsets(psdata data) {
@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
     REAL * originalpos;
     REAL * density0;
     REAL * rotation;
-    uint numSteps = 2000;
+    unsigned int numSteps = 2000;
 
     PS_GET_FIELD(data, "position", REAL, &position);
     PS_GET_FIELD(data, "originalpos", REAL, &originalpos);

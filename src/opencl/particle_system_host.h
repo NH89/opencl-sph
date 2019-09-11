@@ -3,6 +3,7 @@
 
 #define CL_USE_DEPRECATED_OPENCL_1_2_APIS   // needed to use clCreateCommandQueue on OpenCL-2.0
 #include <CL/opencl.h>
+#include <CL/cl_ext.h>  ///added for kdevelop
 #include "../particle_system.h"
 
 typedef struct {

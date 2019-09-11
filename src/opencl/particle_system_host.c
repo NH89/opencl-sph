@@ -1,3 +1,4 @@
+#include <stddef.h>  ///added for kdevelop
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,6 +13,8 @@
 #include "../particle_system.h"
 #include "../note.h"
 #include "platforminfo.h"
+
+//#include <CL/cl_ext.h>  ///added for kdevelop
 
 #define NUM_PS_ARGS 10
 
@@ -63,6 +66,7 @@ void init_opencl()
 
     get_opencl_platform_info(&_platforms, &_num_platforms);
 printf("chk4.1 ");
+
 note(1, "\n");
     ASSERT(_num_platforms > 0);
 
@@ -500,7 +504,7 @@ void populate_position_cuboid_device_opencl(psdata_opencl pso,
                                             unsigned int xsize,
                                             unsigned int ysize,
                                             unsigned int zsize)
-{
+{// (pso, -1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 6, 6, 6) in testopencl.c
     size_t work_group_edge = (size_t) pow
         ((REAL) _platforms[target_platform].devices[target_device].max_workgroup_size, 1.0/3.0);//replaced [0] with [target_platform] ... [target_device]
     size_t local_work_size[] = { work_group_edge, work_group_edge, work_group_edge };

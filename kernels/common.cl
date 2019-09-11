@@ -509,13 +509,13 @@ kernel void insert_particles_in_bin_array (PSO_ARGS, global uint * backup_prefix
 
     size_t i = get_global_id(0);
 
-    if (i < n) cellparticles[atomic_inc(backup_prefix_sum + gridcell[i])] = i;
-}
+    if (i < n) cellparticles[atomic_inc(backup_prefix_sum + gridcell[i])] = i;   /// ?? what is this really doing ? 
+}// looks like it writes the global_id of the current particle to cellparticles[  ]
 
 ////////// Particle creation & transformation //////////
 
 kernel void populate_position_cuboid (PSO_ARGS, REAL3 corner1, REAL3 corner2, uint3 size) {
-    if (get_work_dim() < 3) return;
+    if (get_work_dim() < 3) return;// (-1.0, -1.0, -1.0), (1.0, 1.0, 1.0), (6, 6, 6) in testopencl.c
 
     size_t i = get_global_id(0);
     size_t j = get_global_id(1);
@@ -523,19 +523,19 @@ kernel void populate_position_cuboid (PSO_ARGS, REAL3 corner1, REAL3 corner2, ui
 
     if (i >= size.x || j >= size.y || k >= size.z) return;
 
-    USE_FIELD(position, REAL) USE_FIELD_FIRST_VALUE(pnum, uint) USE_FIELD(n, uint)
+    USE_FIELD(position, REAL) USE_FIELD_FIRST_VALUE(pnum, uint) USE_FIELD(n, uint) //private type n = *((global uint *) n_m);
 
     uint p_ix = i + size.x*j + size.x*size.y*k;
 
     if (p_ix >= pnum) return;
-    else if (p_ix == pnum - 1) n[0] = pnum;
+    else if (p_ix == pnum - 1) n[0] = pnum;   // n[0] will be the lesser of pnum or the number reuired to fill the cuboid ??
     else if (i == size.x - 1 && j == size.y - 1 && k == size.z - 1) n[0] = size.x*size.y*size.z;
 
     REAL3 p = (REAL3) (((REAL) i/ (REAL) (size.x-1)) * (corner2.x - corner1.x) + corner1.x,
                            ((REAL) j/ (REAL) (size.y-1)) * (corner2.y - corner1.y) + corner1.y,
                            ((REAL) k/ (REAL) (size.z-1)) * (corner2.z - corner1.z) + corner1.z);
 
-    vstore3(p, p_ix, position);
+    vstore3(p, p_ix, position);//store vector p at p_ix in array 'position' 
 }
 kernel void rotate_particles (PSO_ARGS, REAL angle_x, REAL angle_y, REAL angle_z) {
     // ZYX

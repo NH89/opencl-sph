@@ -1,43 +1,14 @@
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
-
-#ifndef MATLAB_MEX_FILE
-    #include <stdlib.h>
-#else
-    #include "mex.h"
-#endif
-
+#include <stdlib.h>
 
 #include "note.h"
 #include "particle_system.h"
 #include "build_psdata.h"
 #include "opencl/particle_system_host.h"
 
-
 static psdata * ps_instance = NULL;
-
-#ifdef MATLAB_MEX_FILE
-psdata * create_stored_psdata_from_string(const char * string) {
-    ps_instance = malloc(sizeof(psdata));
-
-    ps_instance->num_fields = 0;
-
-    build_psdata_from_string(ps_instance, string);
-
-    return ps_instance;
-}
-
-psdata * get_stored_psdata() {
-    return ps_instance;
-}
-
-void free_stored_psdata() {
-    free_psdata(ps_instance);
-
-    free(ps_instance);
-}
-#endif
 
 void display_entry(psdata data, size_t offset, size_t size) {
     if (size == 8) {
@@ -288,60 +259,6 @@ void init_psdata_fluid( psdata * data, int pnum, REAL mass, REAL timestep, REAL 
 
     data->num_host_fields = 0;
     }
-
-    { /* MATLAB bollocks */
-#ifdef MATLAB_MEX_FILE
-    mxArray * position_mex     = mxCreateNumericArray( data->num_dimensions[5],
-                                                       data->dimensions+data->dimensions_offsets[5],
-                                                       mxDOUBLE_CLASS, mxREAL );
-    mxArray * posnext_mex      = mxCreateNumericArray( data->num_dimensions[6],
-                                                       data->dimensions+data->dimensions_offsets[6],
-                                                       mxDOUBLE_CLASS, mxREAL );
-    mxArray * velocity_mex     = mxCreateNumericArray( data->num_dimensions[7],
-                                                       data->dimensions+data->dimensions_offsets[7],
-                                                       mxDOUBLE_CLASS, mxREAL );
-    mxArray * veleval_mex      = mxCreateNumericArray( data->num_dimensions[8],
-                                                       data->dimensions+data->dimensions_offsets[8],
-                                                       mxDOUBLE_CLASS, mxREAL );
-    mxArray * velnext_mex      = mxCreateNumericArray( data->num_dimensions[9],
-                                                       data->dimensions+data->dimensions_offsets[9],
-                                                       mxDOUBLE_CLASS, mxREAL );
-    mxArray * acceleration_mex = mxCreateNumericArray( data->num_dimensions[10],
-                                                       data->dimensions+data->dimensions_offsets[10],
-                                                       mxDOUBLE_CLASS, mxREAL );
-    mxArray * force_mex        = mxCreateNumericArray( data->num_dimensions[11],
-                                                       data->dimensions+data->dimensions_offsets[11],
-                                                       mxDOUBLE_CLASS, mxREAL );
-    mxArray * density_mex      = mxCreateNumericArray( data->num_dimensions[12],
-                                                       data->dimensions+data->dimensions_offsets[12],
-                                                       mxDOUBLE_CLASS, mxREAL );
-    mxArray * volume_mex       = mxCreateNumericArray( data->num_dimensions[13],
-                                                       data->dimensions+data->dimensions_offsets[13],
-                                                       mxDOUBLE_CLASS, mxREAL );
-
-    mexMakeArrayPersistent(position_mex);
-    mexMakeArrayPersistent(posnext_mex);
-    mexMakeArrayPersistent(velocity_mex);
-    mexMakeArrayPersistent(veleval_mex);
-    mexMakeArrayPersistent(velnext_mex);
-    mexMakeArrayPersistent(acceleration_mex);
-    mexMakeArrayPersistent(force_mex);
-    mexMakeArrayPersistent(density_mex);
-    mexMakeArrayPersistent(volume_mex);
-
-    create_host_field_psdata(data, "position_mex",     position_mex,     sizeof(mxArray*));
-    create_host_field_psdata(data, "posnext_mex",      posnext_mex,      sizeof(mxArray*));
-    create_host_field_psdata(data, "velocity_mex",     velocity_mex,     sizeof(mxArray*));
-    create_host_field_psdata(data, "veleval_mex",      veleval_mex,      sizeof(mxArray*));
-    create_host_field_psdata(data, "velnext_mex",      velnext_mex,      sizeof(mxArray*));
-    create_host_field_psdata(data, "acceleration_mex", acceleration_mex, sizeof(mxArray*));
-    create_host_field_psdata(data, "force_mex",        force_mex,        sizeof(mxArray*));
-    create_host_field_psdata(data, "density_mex",      density_mex,      sizeof(mxArray*));
-    create_host_field_psdata(data, "volume_mex",       volume_mex,       sizeof(mxArray*));
-
-    sync_to_mex(data);
-#endif
-    }
 }
 
 int get_field_psdata(psdata data, const char * name) {
@@ -426,91 +343,20 @@ int get_host_field_psdata(psdata * data, const char * name) {
     return -1;
 }
 
-#ifdef MATLAB_MEX_FILE
-void sync_to_mex(psdata * data) {
-    void * field;
-    mxArray * mex_field;
-
-    int i, f;
-    for (i = 0; i < data->num_host_fields; ++i) {
-        if (!is_mex_field(data->host_names[i])) continue;
-
-        mex_field = (mxArray*) data->host_data[i];
-
-        int name_length = strlen(data->host_names[i]) - 4;
-        char * field_name = malloc((name_length + 1)*sizeof(char));
-        strncpy(field_name, data->host_names[i], name_length);
-        field_name[name_length] = '\0';
-        f = get_field_psdata(*data, field_name);
-
-        free(field_name);
-
-        if (f == -1) continue;
-
-        void * mex_field_ptr = mxGetData(mex_field);
-        
-        memcpy(mex_field_ptr, ((char*) data->data) + data->data_offsets[f], data->data_sizes[f]);
-        /* TODO: This is shit, fix it
-        int j;
-        for (j = 0; j < data->data_sizes[f]/sizeof(REAL); ++j) {
-            REAL val = ((REAL*) (data->data + data->data_offsets[f]))[j];
-            mex_field_ptr[j] = val;
-        }
-        */
-    }
-}
-
-int is_mex_field(const char * name) {
-    const char * mex_cmp = "_mex";
-    size_t mex_len = strlen(mex_cmp);
-
-    size_t name_len = strlen(name);
-    if (name_len < mex_len) return 0;
-
-    const char * name_end = name + name_len - mex_len;
-    if (strcmp(name_end, mex_cmp) == 0) return 1;
-    
-    return 0;
-}
-
-void get_mex_field_name(const char * name, size_t * pReturnLength, char * mex_name) {
-    const char * mext = "_mex";
-
-    if (pReturnLength != NULL) {
-        *pReturnLength = strlen(name) + strlen(mext);
-        return;
-    } else {
-        sprintf(mex_name, "%s%s", name, mext);
-    }
-}
-#endif
-
 void free_psdata( psdata * data ) {
     free((char*) data->names);
     free(data->names_offsets);
-    
     free(data->dimensions);
     free(data->num_dimensions);
     free(data->dimensions_offsets);
     free(data->entry_sizes);
-
-#ifdef MATLAB_MEX_FILE
-    mxFree(data->data);
-#else
     free(data->data);
-#endif
     free(data->data_sizes);
     free(data->data_offsets);
 
     unsigned int i;
     for (i = 0; i < data->num_host_fields; ++i) {
-#ifdef MATLAB_MEX_FILE
-        if (is_mex_field(data->host_names[i])) mxDestroyArray(data->host_data[i]);
-        else free(data->host_data[i]);
-#else
         free(data->host_data[i]);
-#endif
-
         free(data->host_names[i]);
     }
     note(2, "freed host data\n");

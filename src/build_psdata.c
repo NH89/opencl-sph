@@ -9,9 +9,6 @@
 #include "note.h"
 #include "particle_system.h"
 #include "stringly.h"
-#ifdef MATLAB_MEX_FILE
-    #include "mex.h"
-#endif
 
 typedef struct psdata_field_spec psdata_field_spec;
 
@@ -348,18 +345,10 @@ static void populate_psdata(psdata * data, psdata_field_spec * list) {
 
     data->names = malloc(names_length * sizeof(char));
     data->dimensions = malloc(dimensions_length * sizeof(unsigned int));
-#ifndef MATLAB_MEX_FILE
     data->data = calloc(data_size, 1);
-#else
-    data->data = mxCalloc(data_size, 1);
-
-    mexMakeMemoryPersistent(data->data);
-#endif
 
     // Copy in data
-
     field_cursor = list;
-
     f = 0;
     while (field_cursor != NULL) {
         strcpy(((char*)data->names) + data->names_offsets[f], field_cursor->name);
@@ -375,58 +364,6 @@ static void populate_psdata(psdata * data, psdata_field_spec * list) {
     }
 
     data->num_host_fields = 0;
-
-#ifdef MATLAB_MEX_FILE
-    const char * mex_suffix = "_mex";
-    size_t mex_suffix_length = strlen(mex_suffix);
-    
-    unsigned int * zerodims = { 0 };
-
-    field_cursor = list;
-
-    f = 0;
-    while (field_cursor != NULL) {
-        int use_field = 1;
-
-        char * host_name = malloc(strlen(field_cursor->name) + mex_suffix_length + 1);
-
-        sprintf(host_name, "%s%s", field_cursor->name, mex_suffix);
-
-        mxArray * data_mex;
-
-        if (strcmp(field_cursor->type, "REAL") == 0) {
-
-            data_mex = mxCreateNumericArray(field_cursor->num_dimensions,
-                                            field_cursor->dimensions, mxDOUBLE_CLASS, mxREAL);
-
-        } else if (strcmp(field_cursor->type, "int") == 0) {
-
-            data_mex = mxCreateNumericArray(field_cursor->num_dimensions,
-                                            field_cursor->dimensions, mxINT32_CLASS, mxREAL);
-
-        } else if (strcmp(field_cursor->type, "unsigned int") == 0) {
-
-            data_mex = mxCreateNumericArray(field_cursor->num_dimensions,
-                                            field_cursor->dimensions, mxUINT32_CLASS, mxREAL);
-
-        } else {
-            use_field = 0;
-        }
-
-        if (use_field) {
-            mexMakeArrayPersistent(data_mex);
-
-            create_host_field_psdata(data, host_name, data_mex, sizeof(mxArray*));
-        }
-
-        free(host_name);
-
-        field_cursor = field_cursor->next;
-        ++f;
-    }
-
-    sync_to_mex(data);
-#endif
 }
 static void free_psdata_field_spec_list(psdata_field_spec * list) {
     free(list->name);

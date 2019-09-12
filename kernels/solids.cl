@@ -89,14 +89,33 @@ kernel void compute_rotations_and_strains (PSO_ARGS) {
 
     for (uint d = 0; d < 9; ++d) apq[d] = 0;
 
-    FOR_PARTICLES_IN_RANGE(i, j,
+    /*FOR_PARTICLES_IN_RANGE(i, j,
         if (j == i) continue;
 
         REAL3 p = vload3(j, position) - ipos;
         REAL3 q = vload3(j, originalpos) - ipos0;
 
         contributeApq(p, q, applyKernel(length(p), smoothingradius), apq);
-    )
+    )*/  
+    {
+    int gx, gy, gz;
+    for (gz = -1; gz <= 1; ++gz)
+        for (gy = -1; gy <= 1; ++gy){
+            for (gx = -1; gx <= 1; ++gx){
+                int cell = get_cell_at_offset(gridres, gridcell[i], gx, gy, gz);
+                if (cell == -1) continue;
+                uint offset = celloffset[cell];
+                for (uint jp = offset; jp < offset + gridcount[cell]; ++jp) {
+                    uint j = cellparticles[jp];
+                    j = cellparticles[jp];
+                    if (j == i) continue;
+                    REAL3 p = vload3(j, position) - ipos;
+                    REAL3 q = vload3(j, originalpos) - ipos0;
+                    contributeApq(p, q, applyKernel(length(p), smoothingradius), apq);
+                }  
+            }
+        }
+    }
 
     global REAL * r = rotation + i*3*3;
 
@@ -110,7 +129,7 @@ kernel void compute_rotations_and_strains (PSO_ARGS) {
 
     for (uint d = 0; d < 9; ++d) deformation[d] = 0;
 
-    FOR_PARTICLES_IN_RANGE(i, j,
+    /*FOR_PARTICLES_IN_RANGE(i, j,
         if (j == i) continue;
 
         REAL3 p = vload3(j, position) - ipos;
@@ -121,7 +140,27 @@ kernel void compute_rotations_and_strains (PSO_ARGS) {
         REAL3 u = p-q;
 
         addOuterProduct(u*mass/density0[i], applyKernelGradient(q, smoothingradius), deformation);
-    )
+    )*/ 
+    {
+    int gx, gy, gz;
+    for (gz = -1; gz <= 1; ++gz)
+        for (gy = -1; gy <= 1; ++gy){
+            for (gx = -1; gx <= 1; ++gx){
+                int cell = get_cell_at_offset(gridres, gridcell[i], gx, gy, gz);
+                if (cell == -1) continue;
+                uint offset = celloffset[cell];
+                for (uint jp = offset; jp < offset + gridcount[cell]; ++jp) {
+                    uint j = cellparticles[jp];
+                    if (j == i) continue;
+                    REAL3 p = vload3(j, position) - ipos;
+                    p = multiplyMatrixVectorPrivate(r_t, p);
+                    REAL3 q = vload3(j, originalpos) - ipos0;
+                    REAL3 u = p-q;
+                    addOuterProduct(u*mass/density0[i], applyKernelGradient(q, smoothingradius), deformation);
+                }  
+            }
+        }
+    }
 
     global REAL * s = strain + i*6;
 
@@ -143,7 +182,7 @@ kernel void compute_original_density (PSO_ARGS) {
 
     density0[i] = 0;
 
-    FOR_PARTICLES_IN_RANGE(i, j,
+    /*FOR_PARTICLES_IN_RANGE(i, j,
         j = cellparticles[jp];
 
         REAL3 jpos = vload3(j, position);
@@ -153,40 +192,48 @@ kernel void compute_original_density (PSO_ARGS) {
         REAL dist = length(diff);
 
         density0[i] += applyKernel(dist, smoothingradius);
-    )
-
+    )*/  
+    {
+    int gx, gy, gz;
+    for (gz = -1; gz <= 1; ++gz)
+        for (gy = -1; gy <= 1; ++gy){
+            for (gx = -1; gx <= 1; ++gx){
+                int cell = get_cell_at_offset(gridres, gridcell[i], gx, gy, gz);
+                if (cell == -1) continue;
+                uint offset = celloffset[cell];
+                for (uint jp = offset; jp < offset + gridcount[cell]; ++jp) {
+                    uint j = cellparticles[jp];
+                    REAL3 jpos = vload3(j, position);
+                    REAL3 diff = jpos - ipos;
+                    REAL dist = length(diff);
+                    density0[i] += applyKernel(dist, smoothingradius);
+                }  
+            }
+        }
+    }
     density0[i] *= mass;
 }
 kernel void compute_stresses (PSO_ARGS) {
     USE_FIELD(strain, REAL) USE_FIELD(stress, REAL)
     USE_FIELD_FIRST_VALUE(bulk_modulus, REAL) USE_FIELD_FIRST_VALUE(shear_modulus, REAL)
-
     USE_FIELD_FIRST_VALUE(n, uint)
-
     unsigned int i = get_global_id(0);
-
     if (i >= n) return;
-
     computeStress(strain + i*6, bulk_modulus, shear_modulus, stress + i*6);
 }
 
 kernel void compute_forces_solids (PSO_ARGS) {
     USE_GRID_PROPS
-
     USE_FIELD_FIRST_VALUE(n, uint)
-
     USE_FIELD(originalpos, REAL) USE_FIELD_FIRST_VALUE(smoothingradius, REAL)
     USE_FIELD(stress, REAL) USE_FIELD_FIRST_VALUE(mass, REAL) USE_FIELD(density0, REAL)
     USE_FIELD(rotation, REAL) USE_FIELD(force, REAL) USE_FIELD(velocity, REAL)
     USE_FIELD_FIRST_VALUE(viscosity, REAL) USE_FIELD(density, REAL) USE_FIELD(position, REAL)
-
     unsigned int i = get_global_id(0);
-
     if (i >= n) return;
-
     REAL3 ipos = vload3(i, position);
     REAL3 ivel = vload3(i, velocity);
-
+/*
 // Repurpose for later batches
 #define INIT_SOLIDS_FORCE_COMPUTATION \
     REAL3 ipos0 = vload3(i, originalpos);\
@@ -198,8 +245,14 @@ kernel void compute_forces_solids (PSO_ARGS) {
     REAL3 f_v = (REAL3)(0, 0, 0);
 
     INIT_SOLIDS_FORCE_COMPUTATION
+    */  
+    REAL3 ipos0 = vload3(i, originalpos);
+    global REAL * i_stress = stress + i*6;
+    global REAL * i_rotation = rotation + i*3*3;
+    REAL3 f_e = (REAL3)(0, 0, 0);
+    REAL3 f_v = (REAL3)(0, 0, 0);
 
-    FOR_PARTICLES_IN_RANGE(i, j,
+    /*FOR_PARTICLES_IN_RANGE(i, j,
         if (j == i) continue;
 
 #define SOLIDS_FORCE_COMPUTATION \
@@ -222,7 +275,35 @@ kernel void compute_forces_solids (PSO_ARGS) {
         f_v += mass/density[j] * (jvel - ivel) * applyLapKernel(length(jpos - ipos), smoothingradius);
 
         SOLIDS_FORCE_COMPUTATION
-    )
+    )*/  
+    
+    {
+    int gx, gy, gz;
+    for (gz = -1; gz <= 1; ++gz)
+        for (gy = -1; gy <= 1; ++gy){
+            for (gx = -1; gx <= 1; ++gx){
+                int cell = get_cell_at_offset(gridres, gridcell[i], gx, gy, gz);
+                if (cell == -1) continue;
+                uint offset = celloffset[cell];
+                for (uint jp = offset; jp < offset + gridcount[cell]; ++jp) {
+                    uint j = cellparticles[jp];
+                    if (j == i) continue;
+                    REAL3 jpos0 = vload3(j, originalpos);
+                    global REAL * j_stress = stress + j*6;
+                    REAL3 x = jpos0 - ipos0;
+                    REAL vivj = mass*mass/density0[i]/density0[j];
+                    REAL3 f_ji = -vivj * multiplySymMatrixVector(i_stress, applyKernelGradient(x, smoothingradius));
+                    REAL3 f_ij = -vivj * multiplySymMatrixVector(j_stress, applyKernelGradient(-x, smoothingradius));
+                    global REAL * j_rotation = rotation + j*3*3;
+                    f_e += -multiplyMatrixVector(i_rotation, f_ji) + multiplyMatrixVector(j_rotation, f_ij);
+                    REAL3 jpos = vload3(j, position);
+                    REAL3 jvel = vload3(j, velocity);
+                    f_v += mass/density[j] * (jvel - ivel) * applyLapKernel(length(jpos - ipos), smoothingradius);
+                }  
+            }
+        }
+    }
+    
 
 #define FINALISE_SOLIDS_FORCE_COMPUTATION \
     f_e *= 0.5f;\

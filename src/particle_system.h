@@ -1,14 +1,14 @@
 #ifndef PARTICLE_SYSTEM_H_
 #define PARTICLE_SYSTEM_H_
 
-#include "macros.h"
+#include <assert.h>//#include "macros.h"
 #include "types.h"
 
 /* Unnecessary but convenient voodoo, type should match pointer type */
 #define PS_P_PTR(d, position, type) ((type*) ((char*) (d).data + (d).data_offsets[position]))
 #define PS_GET_FIELD(data, name, type, pointer_to_pointer) {\
     int __fldpos = get_field_psdata(data, name); \
-    ASSERT(__fldpos != -1); \
+    assert(__fldpos != -1); \
     *pointer_to_pointer = PS_P_PTR(data, __fldpos, type);}
 
 typedef struct {
@@ -37,6 +37,8 @@ typedef struct {
 
 void display_psdata(psdata, const char * const * mask);
 void write_psdata(psdata, int number, const char * Case);
+void write_psdata_ply(psdata, int number, const char * Case);
+
 
 void init_psdata_fluid( psdata * data, int pnum, REAL mass, REAL timestep, REAL smoothingradius,
        REAL xbound1, REAL ybound1, REAL zbound1, REAL xbound2, REAL ybound2, REAL zbound2 );

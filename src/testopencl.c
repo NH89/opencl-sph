@@ -69,7 +69,8 @@ for(int i = 0; i<numSteps;i++)
             call_for_all_particles_device_opencl(pso, "step_forward");
         
             sync_psdata_device_to_host(data, pso);
-	    write_psdata(data, i, "solid");
+	    //write_psdata(data, i, "solid");
+        if (i%5 == 0) write_psdata_ply(data, i, "solid");      // save every 5th frame.
 }
         free_psdata_opencl(&pso);
     if (verbose) printf(" chk13 "); 

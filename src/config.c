@@ -1,10 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include "macros.h"
+#include <assert.h>//#include "macros.h"
 #include "note.h"
-
 #define MAX_SECTIONS 8
 
 static char * g_config = NULL;
@@ -14,24 +12,18 @@ static char * g_section_starts[MAX_SECTIONS] = {NULL};
 
 void load_config(const char * relativePath) {
     const char * conf_path = relativePath;
-	printf(" ## opening file %s ", conf_path); // added to check what file is being read //
-    // Copy the contents
-    FILE * conf = fopen(conf_path, "rb");
-
+	printf(" ## opening file %s ", conf_path);             // added to check what file is being read //
+    FILE * conf = fopen(conf_path, "rb");                   // Copy the contents
     if (conf == NULL) {
         note(2, "Could not read file %s\n", conf_path);
-        ASSERT(0);
+        assert(0); //ASSERT(0);
     }
-
     fseek(conf, 0, SEEK_END);
     size_t conf_end = ftell(conf);
-
     g_config = malloc(conf_end+1*sizeof(char));
-
     fseek(conf, 0, SEEK_SET);
     fread(g_config, 1, conf_end, conf);
     fclose(conf);
-
     g_config[conf_end] = '\0';
 
     // Extract position of section headings and contents and chop the string up so they are isolated
@@ -45,15 +37,11 @@ void load_config(const char * relativePath) {
         section_pointer = strtok(NULL, "\n");
     }
 
-    while (section_pointer != NULL &&
-           g_num_sections < MAX_SECTIONS) {
+    while (section_pointer != NULL && g_num_sections < MAX_SECTIONS) {
         g_section_titles[g_num_sections] = section_pointer;
-
         section_pointer = strtok(NULL, "$");
-
         g_section_starts[g_num_sections] = section_pointer;
         if (section_pointer != NULL) ++g_num_sections;
-
         section_pointer = strtok(NULL, "\n");
     }
 }
@@ -61,12 +49,10 @@ const char * get_config_section(const char * heading) {
     for (size_t i = 0; i < g_num_sections; ++i) {
         if (strcmp(heading, g_section_titles[i]) == 0) return g_section_starts[i];
     }
-
     return NULL;
 }
 void unload_config() {
     free(g_config);
-
     g_config = NULL;
     g_num_sections = 0;
     memset(g_section_starts, 0, sizeof g_section_starts);

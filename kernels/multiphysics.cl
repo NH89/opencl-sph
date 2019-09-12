@@ -40,7 +40,7 @@ kernel void compute_forces_multiphysics (PSO_ARGS) {
 
     REAL3 f_ext = (REAL3)(0, 0, 0);
 
-    FOR_PARTICLES_IN_RANGE(i, j,
+    /*FOR_PARTICLES_IN_RANGE(i, j,
         if (j == i) continue;
 
         if (particletype[i] == 1 && particletype[j] == 1) {
@@ -50,7 +50,29 @@ kernel void compute_forces_multiphysics (PSO_ARGS) {
         } else {
             // f_ext += Something something pressure gradient
         }
-    )
+    )*/    
+    {
+    int gx, gy, gz;
+    for (gz = -1; gz <= 1; ++gz)
+        for (gy = -1; gy <= 1; ++gy){
+            for (gx = -1; gx <= 1; ++gx){                                               // loop through 27 bins for all adjacent particles
+                int cell = get_cell_at_offset(gridres, gridcell[i], gx, gy, gz);
+                if (cell == -1) continue;                                               // if bin is not valid
+                uint offset = celloffset[cell];
+                for (uint jp = offset; jp < offset + gridcount[cell]; ++jp) {
+                    uint j = cellparticles[jp];
+                    if (j == i) continue;                                               // if same particle
+                    if (particletype[i] == 1 && particletype[j] == 1) {
+                        SOLIDS_FORCE_COMPUTATION                                        // solid-sold interaction 
+                    } else if (particletype[i] == 2 && particletype[j] == 2) {
+                        FLUIDS_FORCE_COMPUTATION                                        // fluid-fluid
+                    } else {
+                        // f_ext += Something something pressure gradient               // solid-fluid
+                    }
+                }  
+            }
+        }
+    }
 
     FINALISE_SOLIDS_FORCE_COMPUTATION
     FINALISE_FLUIDS_FORCE_COMPUTATION

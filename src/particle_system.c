@@ -55,45 +55,59 @@ void display_psdata(psdata data, const char * const * mask) {
     }
 }
 
-void write_psdata(psdata data, int number, const char* Case)
-{
-
-    for (size_t field = 0; field < data.num_fields; ++field)
-    {
-
+void write_psdata(psdata data, int number, const char* Case){
+    for (size_t field = 0; field < data.num_fields; ++field){
         char * name = data.names + data.names_offsets[field];
-
-
         char snum[5];
         sprintf(snum, "%d", number);
-
-
-        if (strcmp(name, "position") == 0)
-        {
-
+        if (strcmp(name, "position") == 0){
             char filename[150];
             //strcpy(filename, "/media/aslab/data/hackthon_data/");
             //strcat(filename, Case);
             strcpy(filename, "position_");
             strcat(filename, snum);
             strcat(filename, ".csv");
-
             FILE *f = fopen(filename, "w");
-
             unsigned int d0 = (data.dimensions + data.dimensions_offsets[field])[0];
             unsigned int d1 = (data.dimensions + data.dimensions_offsets[field])[1];
-
             for (unsigned int i = 0; i < d1; ++i) {
                 for (unsigned int j = 0; j < d0; ++j) {
                     fprintf(f, "%0.3lf,", *((REAL*)((char*)data.data + data.data_offsets[field] + (i*d0+j)*data.entry_sizes[field])));
                 }
                 fprintf(f,"\n");
-
             }
             fclose(f);
         }
     }
-
+}
+void write_psdata_ply(psdata data, int number, const char* Case){
+    for (size_t field = 0; field < data.num_fields; ++field){
+        char * name = data.names + data.names_offsets[field];
+        char snum[5];
+        sprintf(snum, "%d", number);
+        if (strcmp(name, "position") == 0){
+            char filename[150];
+            //strcpy(filename, "/media/aslab/data/hackthon_data/");
+            //strcat(filename, Case);
+            strcpy(filename, "position_");
+            strcat(filename, snum);
+            strcat(filename, ".ply");
+            FILE *f = fopen(filename, "w");
+            unsigned int d0 = (data.dimensions + data.dimensions_offsets[field])[0];
+            unsigned int d1 = (data.dimensions + data.dimensions_offsets[field])[1];
+            fprintf(f, "ply \n format ascii 1.0\n comment particle cloud from Fluids_v4\n element vertex %i\n", d1 );
+            fprintf(f, "property float x\nproperty float y\nproperty float z\n");
+            fprintf(f, "end_header\n");
+            for (unsigned int i = 0; i < d1; ++i) {
+                for (unsigned int j = 0; j < d0; ++j) {
+                    fprintf(f, "%0.3lf ", *((REAL*)((char*)data.data + data.data_offsets[field] + (i*d0+j)*data.entry_sizes[field])));
+                }
+                fprintf(f,"\n");
+            }
+            fclose(f);
+            fflush (f);
+        }
+    }
 }
 
 void init_psdata_fluid( psdata * data, int pnum, REAL mass, REAL timestep, REAL smoothingradius,

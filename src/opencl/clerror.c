@@ -1,3 +1,5 @@
+#include <assert.h>
+#include <stdio.h>
 #include "clerror.h"
 #include "../note.h"
 
@@ -194,7 +196,15 @@ void printCLError(cl_int error) {
     }
 }
 
-void contextErrorCallback(const char * errinfo, const void * private_info,
-                          size_t cb, void * user_data) {
+// void handleCLError(int x) { 
+//     char out[50];
+//     sprintf(out, "%i\n",x);
+//     note(0, out); 
+//     cl_int e = x; 
+//     if (e != CL_SUCCESS) printCLError(e); 
+//     assert(e == CL_SUCCESS); 
+// }
+
+void contextErrorCallback(const char * errinfo, const void * private_info, size_t cb, void * user_data) {
     note(2, "%s\n", errinfo);
 }

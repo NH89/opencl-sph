@@ -68,7 +68,7 @@ void init_opencl()
 printf("chk4.1 ");
 
 note(1, "\n");
-    ASSERT(_num_platforms > 0);
+    assert(_num_platforms > 0);
 
     const cl_context_properties context_properties[] = {
         CL_CONTEXT_PLATFORM, (cl_context_properties) _platforms[target_platform].id, 0  // replaced [0] with target_platform
@@ -96,7 +96,7 @@ printf("chk4.2 ");
     _command_queues     = malloc(_platforms[target_platform].num_devices*sizeof(cl_command_queue)); // replaced [0] with target_platform
     _num_command_queues = _platforms[target_platform].num_devices; // replaced [0] with [target_platform]
 
-    ASSERT(_num_command_queues > 0);
+    assert(_num_command_queues > 0);
     
     // JD added, determine max worker size during long time to avoid crashing on Intel Integrated GPU  
 
@@ -147,28 +147,19 @@ static void create_kernels(psdata_opencl * pso)
 
     for (size_t i = 0; i < pso->num_kernels; ++i) {
         char ** kernel_name_ptr = (char**) pso->kernel_names + i;
-
         *kernel_name_ptr = malloc((strlen(kernel_names_ptr)+1)*sizeof(char));
         strcpy(*kernel_name_ptr, kernel_names_ptr);
-
         note(1, "%s, ", pso->kernel_names[i]);
-
         cl_int error;
-
         *((cl_kernel*) pso->kernels + i) = clCreateKernel(pso->ps_prog, pso->kernel_names[i], &error); HANDLE_CL_ERROR(error);
-
         kernel_names_ptr = strtok(NULL, ";");
     }
-
     note(1, "\n");
 }
 
 cl_kernel get_kernel(psdata_opencl pso, const char * name)
 {
-    for (size_t i = 0; i < pso.num_kernels; ++i) {
-        if (strcmp(name, pso.kernel_names[i]) == 0) return pso.kernels[i];
-    }
-
+    for (size_t i = 0; i < pso.num_kernels; ++i) {  if (strcmp(name, pso.kernel_names[i]) == 0) return pso.kernels[i]; }
     return NULL;
 }
 
@@ -177,97 +168,52 @@ void call_kernel_device_opencl(psdata_opencl pso, const char * kernel_name, cl_u
                                const size_t * local_work_size)
 {
     cl_kernel kernel = get_kernel(pso, kernel_name);
-
-    ASSERT(kernel != NULL);
-
+    assert(kernel != NULL);
     //note(1, "Calling kernel %s with work size %u and local size %u\n", kernel_name, *global_work_size, *local_work_size);
-
-    HANDLE_CL_ERROR(clEnqueueNDRangeKernel(_command_queues[0], kernel, work_dim, global_work_offset,
-                                           global_work_size, NULL, 0, NULL, NULL));
-
+    HANDLE_CL_ERROR(clEnqueueNDRangeKernel(_command_queues[0], kernel, work_dim, global_work_offset, global_work_size, NULL, 0, NULL, NULL));
     HANDLE_CL_ERROR(clFinish(_command_queues[0]));
 }
 
 void build_program(psdata * data, psdata_opencl * pso, const char * file_list)
 {
     cl_int error;
-
-    /* Get file data */
-    {
+    {                                                                                   /* Get file data */
         char * exe_path;
-
-#ifndef MATLAB_MEX_FILE
         exe_path = OPENCL_SPH_KERNELS_ROOT;
-#else
-		exe_path = getenv("EXE_PATH");
-#endif
-
         const char * file_extension = ".cl";
-#ifdef MATLAB_MEX_FILE
-		const char * kern_rel_path = "/../../kernels/";
-#endif
-
         char * file_list_copy = malloc((strlen(file_list)+1)*sizeof(char));
-
         strcpy(file_list_copy, file_list);
-
         char * file_name = strtok(file_list_copy, ", \n");
-
         char * compilation_unit = calloc(1, sizeof(char));
 
         while (file_name) {
-            char * file_path = malloc( ( strlen(exe_path)
-                                       + strlen(file_name)
-                                       + strlen(file_extension)
-                                       + 1
-                                       ) * sizeof(char));
-
+            char * file_path = malloc( ( strlen(exe_path) + strlen(file_name) + strlen(file_extension) + 1) * sizeof(char));
             sprintf(file_path, "%s%s%s", exe_path, file_name, file_extension);
-
             note(1, "Adding OpenCL file at %s\n", file_path);
-
             long int file_length;
-
             FILE * f = fopen(file_path, "rb");
-
             free(file_path);
-
-            ASSERT(f != NULL);
-
+            assert(f != NULL);
             fseek(f, 0, SEEK_END);
             file_length = ftell(f);
             fseek(f, 0, SEEK_SET);
-
             size_t compilation_unit_len = strlen(compilation_unit);
-
             size_t new_length = compilation_unit_len + file_length / sizeof(char);
-
             char * compilation_unit_temp = malloc((new_length + 1) * sizeof(char));
-
             strcpy(compilation_unit_temp, compilation_unit);
             fread(compilation_unit_temp + compilation_unit_len, sizeof(char), file_length, f);
-
             fclose(f);
-
             compilation_unit_temp[new_length] = '\0';
-
             free(compilation_unit);
-
             compilation_unit = compilation_unit_temp;
-
             file_name = strtok(NULL, ", \n");
         }
-
         free(file_list_copy);
-
         char * compilation_unit_with_macros = add_field_macros_to_start_of_string(compilation_unit, data);
         free(compilation_unit);
-
         size_t cu_macros_length = strlen(compilation_unit_with_macros);
-
         pso->ps_prog = clCreateProgramWithSource(_context, 1, (const char **) &compilation_unit_with_macros, &cu_macros_length, &error);
         HANDLE_CL_ERROR(error);
-
         free(compilation_unit_with_macros);
     }
 
@@ -277,25 +223,16 @@ void build_program(psdata * data, psdata_opencl * pso, const char * file_list)
     if (build_error != CL_SUCCESS) {
         char * error_log;
         size_t log_length;
-
-        HANDLE_CL_ERROR(clGetProgramBuildInfo(pso->ps_prog, _platforms[target_platform].devices[target_device].id,//replaced [0] with [target_platform] ...[target_device]
-                                              CL_PROGRAM_BUILD_LOG, 0, NULL, &log_length));
-
+        HANDLE_CL_ERROR(clGetProgramBuildInfo(  pso->ps_prog,    _platforms[target_platform].devices[target_device].id,  CL_PROGRAM_BUILD_LOG,   0,  NULL,   &log_length    )); //replaced [0] with [target_platform] ...[target_device]
         error_log = malloc(log_length*sizeof(char));
-
-        HANDLE_CL_ERROR(clGetProgramBuildInfo(pso->ps_prog, _platforms[target_platform].devices[target_device].id,//replaced [0] with [target_platform] ...[target_device]
-                                              CL_PROGRAM_BUILD_LOG, log_length, error_log, NULL));
-
+        HANDLE_CL_ERROR(clGetProgramBuildInfo(  pso->ps_prog,   _platforms[target_platform].devices[target_device].id,  CL_PROGRAM_BUILD_LOG,   log_length,     error_log,  NULL    )); //replaced [0] with [target_platform] ...[target_device]
         printf("%s\n", error_log);
-
         free(error_log);
-
         HANDLE_CL_ERROR(build_error);
     }
 }
 
-/* Allocates new string */
-char * add_field_macros_to_start_of_string(const char * string, psdata * data)
+char * add_field_macros_to_start_of_string(const char * string, psdata * data)  /* Allocates new string */
 {
     const char * start = "#define ";
     const char * middle = " (((global char *) data) + data_offsets[";
@@ -311,9 +248,7 @@ char * add_field_macros_to_start_of_string(const char * string, psdata * data)
     for (; f < data->num_fields; ++f) {
         string_size += start_size + strlen(data->names + data->names_offsets[f]) + 2 + middle_size + (int)(f == 0 ? 1 : floor(log10(f)) + 1) + end_size;
     }
-
     char * newstring = malloc(strlen(string) + string_size + 1);
-
     char * newstring_ptr = newstring;
 
     for (f = 0; f < data->num_fields; ++f) {
@@ -324,9 +259,7 @@ char * add_field_macros_to_start_of_string(const char * string, psdata * data)
         sprintf(newstring_ptr, "%d", f); newstring_ptr += (int)(f == 0 ? 1 : floor(log10(f)) + 1);
         strcpy(newstring_ptr, end); newstring_ptr += end_size;
     }
-
     strcpy(newstring_ptr, string);
-
     return newstring;
 }
 
@@ -355,7 +288,7 @@ static void bin_and_count_device_opencl(psdata_opencl pso)
     cl_kernel find_particle_bins = get_kernel(pso, "find_particle_bins");
     cl_kernel count_particles_in_bins = get_kernel(pso, "count_particles_in_bins");
 
-    ASSERT(find_particle_bins != NULL && count_particles_in_bins != NULL);
+    assert(find_particle_bins != NULL && count_particles_in_bins != NULL);
 
     HANDLE_CL_ERROR(clEnqueueNDRangeKernel(_command_queues[0], find_particle_bins, 1,
                                            NULL, &num_p_workitems, &pso.po2_workgroup_size, 0, NULL, NULL));
@@ -374,7 +307,7 @@ static void prefix_sum_device_opencl(psdata_opencl pso)
 {
     cl_kernel prefix_sum = get_kernel(pso, "prefix_sum");
 
-    ASSERT(prefix_sum != NULL);
+    assert(prefix_sum != NULL);
 
     size_t num_work_groups = pso.num_blocks;
     size_t num_work_items = num_work_groups * pso.po2_workgroup_size;
@@ -389,7 +322,7 @@ static void copy_celloffset_to_backup_device_opencl(psdata_opencl pso)
 {
     cl_kernel copy_celloffset_to_backup = get_kernel(pso, "copy_celloffset_to_backup");
 
-    ASSERT(copy_celloffset_to_backup != NULL);
+    assert(copy_celloffset_to_backup != NULL);
 
     size_t num_work_items = pso.num_blocks * 2 * pso.po2_workgroup_size;
 
@@ -410,7 +343,7 @@ static void insert_particles_in_bin_array_device_opencl(psdata_opencl pso)
 
     cl_kernel insert_particles_in_bin_array = get_kernel(pso, "insert_particles_in_bin_array");
 
-    ASSERT(insert_particles_in_bin_array != NULL);
+    assert(insert_particles_in_bin_array != NULL);
 
     HANDLE_CL_ERROR(clEnqueueNDRangeKernel(_command_queues[0], insert_particles_in_bin_array, 1, NULL, &num_work_items, &pso.po2_workgroup_size, 0, NULL, NULL));
 
@@ -437,7 +370,7 @@ void compute_density_device_opencl(psdata_opencl pso)
 
     cl_kernel compute_density = get_kernel(pso, "compute_density");
 
-    ASSERT(compute_density != NULL);
+    assert(compute_density != NULL);
 
     note(1, "Starting density comp with %u workitems, workgroup size %d\n", num_workitems, pso.po2_workgroup_size);
     HANDLE_CL_ERROR(clEnqueueNDRangeKernel(_command_queues[0], compute_density, 1, NULL,
@@ -458,7 +391,7 @@ void compute_forces_device_opencl(psdata_opencl pso)
 
     cl_kernel compute_forces = get_kernel(pso, "compute_forces");
 
-    ASSERT(compute_forces != NULL);
+    assert(compute_forces != NULL);
 
     HANDLE_CL_ERROR(clEnqueueNDRangeKernel(_command_queues[0], compute_forces, 1, NULL,
                                            &num_workitems, &pso.po2_workgroup_size, 0, NULL, NULL));
@@ -478,7 +411,7 @@ void step_forward_device_opencl(psdata_opencl pso)
 
     cl_kernel step_forward = get_kernel(pso, "step_forward");
 
-    ASSERT(step_forward != NULL);
+    assert(step_forward != NULL);
 
     HANDLE_CL_ERROR(clEnqueueNDRangeKernel(_command_queues[0], step_forward, 1, NULL,
                                            &num_workitems, &pso.po2_workgroup_size, 0, NULL, NULL));
@@ -518,7 +451,7 @@ void populate_position_cuboid_device_opencl(psdata_opencl pso,
 
     cl_kernel cuboid = get_kernel(pso, "populate_position_cuboid");
 
-    ASSERT(cuboid != NULL);
+    assert(cuboid != NULL);
 
     HANDLE_CL_ERROR(clSetKernelArg(cuboid, NUM_PS_ARGS, sizeof(REAL3), &corner1));
     HANDLE_CL_ERROR(clSetKernelArg(cuboid, NUM_PS_ARGS+1, sizeof(REAL3), &corner2));
@@ -543,7 +476,7 @@ void rotate_particles_device_opencl(psdata_opencl pso, REAL angle_x, REAL angle_
 
     cl_kernel rotate_particles = get_kernel(pso, "rotate_particles");
 
-    ASSERT(rotate_particles != NULL);
+    assert(rotate_particles != NULL);
 
     HANDLE_CL_ERROR(clSetKernelArg(rotate_particles, NUM_PS_ARGS, sizeof(REAL), &angle_x));
     HANDLE_CL_ERROR(clSetKernelArg(rotate_particles, NUM_PS_ARGS+1, sizeof(REAL), &angle_y));
@@ -645,7 +578,7 @@ void assign_pso_kernel_args(psdata_opencl pso)
 
     cl_kernel prefix_sum = get_kernel(pso, "prefix_sum");
 
-    ASSERT(prefix_sum != NULL);
+    assert(prefix_sum != NULL);
 
     HANDLE_CL_ERROR(clSetKernelArg(prefix_sum, NUM_PS_ARGS, 2*pso.po2_workgroup_size*sizeof(unsigned int), NULL));
     HANDLE_CL_ERROR(clSetKernelArg(prefix_sum, NUM_PS_ARGS + 1, sizeof(unsigned int), &pso.num_grid_cells));
@@ -654,14 +587,14 @@ void assign_pso_kernel_args(psdata_opencl pso)
 
     cl_kernel copy_celloffset_to_backup = get_kernel(pso, "copy_celloffset_to_backup");
 
-    ASSERT(copy_celloffset_to_backup != NULL);
+    assert(copy_celloffset_to_backup != NULL);
 
     HANDLE_CL_ERROR(clSetKernelArg(copy_celloffset_to_backup, NUM_PS_ARGS, sizeof(cl_mem), &pso.backup_prefix_sum));
     HANDLE_CL_ERROR(clSetKernelArg(copy_celloffset_to_backup, NUM_PS_ARGS+1, sizeof(unsigned int), &pso.num_grid_cells));
 
     cl_kernel insert_particles_in_bin_array = get_kernel(pso, "insert_particles_in_bin_array");
 
-    ASSERT(insert_particles_in_bin_array != NULL);
+    assert(insert_particles_in_bin_array != NULL);
 
     HANDLE_CL_ERROR(clSetKernelArg(insert_particles_in_bin_array, NUM_PS_ARGS, sizeof(cl_mem), &pso.backup_prefix_sum));
 }

@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <math.h>
+#include <assert.h>//#include "macros.h"
 
-#include "macros.h"
 #include "build_psdata.h"
 #include "note.h"
 #include "particle_system.h"
@@ -439,7 +439,7 @@ static psdata_field_spec * sort_field_spec_list_by_type_size_descending(psdata_f
             list_ptr = list_ptr->next;
             ++field_pos;
         } else if (type_number >= num_types) {
-            ASSERT(i == list_length - 1);
+            assert(i == list_length - 1);
         }
     }
 
@@ -500,7 +500,7 @@ void build_psdata(psdata * data, const char * path) {
 
     if (conf == NULL) {
         note(1, "Could not read file %s\n", path);
-        ASSERT(0);
+        assert(0);
     }
 
     fseek(conf, 0, SEEK_END);

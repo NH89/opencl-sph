@@ -603,17 +603,36 @@ kernel void compute_density (PSO_ARGS) {
 
     density[i] = 0;
 
-    FOR_PARTICLES_IN_RANGE(i, j,
-        j = cellparticles[jp];
-
-        REAL3 jpos = vload3(j, position);
-
-        REAL3 diff = jpos - ipos;
-
-        REAL dist = length(diff);
-
-        density[i] += applyKernel(dist, smoothingradius);
-    )
+/*//     FOR_PARTICLES_IN_RANGE(i, j,
+//         j = cellparticles[jp];
+// 
+//         REAL3 jpos = vload3(j, position);
+// 
+//         REAL3 diff = jpos - ipos;
+// 
+//         REAL dist = length(diff);
+// 
+//         density[i] += applyKernel(dist, smoothingradius);
+//     )*/  
+    {
+    int gx, gy, gz;
+    for (gz = -1; gz <= 1; ++gz)
+        for (gy = -1; gy <= 1; ++gy){
+            for (gx = -1; gx <= 1; ++gx){
+                int cell = get_cell_at_offset(gridres, gridcell[i], gx, gy, gz);
+                if (cell == -1) continue;
+                uint offset = celloffset[cell];
+                for (uint jp = offset; jp < offset + gridcount[cell]; ++jp) {
+                    uint j = cellparticles[jp];
+                    j = cellparticles[jp];
+                    REAL3 jpos = vload3(j, position);
+                    REAL3 diff = jpos - ipos;
+                    REAL dist = length(diff);
+                    density[i] += applyKernel(dist, smoothingradius);
+                }  
+            }
+        }
+    }
 
     density[i] *= mass;
 }

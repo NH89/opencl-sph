@@ -3,6 +3,21 @@
 
 #include "macros.h"
 
+// Usage (see the "microbenchmark" branch of the Git repository.
+// Applied to kernel launches in src/opencl/particle_system_host.c
+//
+// #define OPENCL_SPH_MICROBENCHMARK
+// #include "../microbenchmark.h" 
+// ...
+// void My_function (args...){
+//  timeInit(My_function) ;
+//  timeStart(My_function) ;
+//  ... 
+//  function code   
+//  ...
+//  timeStop(My_function)   OR   timeStopS(My_function,  some_string ) 
+// }
+
 #ifdef OPENCL_SPH_MICROBENCHMARK
 #define timeInit(marker)    struct timeval t ## marker ## 1, t ## marker ## 2;
         

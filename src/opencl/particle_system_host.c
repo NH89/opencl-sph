@@ -14,8 +14,6 @@
 #include "../note.h"
 #include "platforminfo.h"
 
-//#include <CL/cl_ext.h>  ///added for kdevelop
-
 #define NUM_PS_ARGS 10
 
 // #define WG_FUJ_SZ 896
@@ -27,53 +25,24 @@ static int _ready = 0;
 static cl_context _context = NULL;
 static cl_command_queue * _command_queues;
 static unsigned int _num_command_queues = 0;
-
 static Platform const * _platforms;
 static unsigned int _num_platforms;
 
-// static targets to be replaced in later versions.
-static int target_platform = 1; // for Bracewell
-
+static int target_platform = 1; // for Bracewell                // static targets to be replaced in later versions.
 static int target_device = 0; // 0,1,2,3 for Bracewell
-
-#ifdef MATLAB_MEX_FILE
-static psdata_opencl _pso;
-#endif
 
 char * add_field_macros_to_start_of_string(const char * string, psdata * data);
 
-#ifdef MATLAB_MEX_FILE
-psdata_opencl * get_stored_psdata_opencl()
-{
-    return &_pso;
-}
-
-void free_stored_psdata_opencl() {
-    free_psdata_opencl(&_pso);
-
-    memset(&_pso, 0, sizeof _pso);
-}
-#endif
-
-/**
- * Initialise OpenCL
- *
- * Detects hardware, creates command queues
- */
+/*  Initialise OpenCL - Detects hardware, creates command queues  */
 void init_opencl()
 {
     if (_ready) return;
 
     get_opencl_platform_info(&_platforms, &_num_platforms);
 printf("chk4.1 ");
-
 note(1, "\n");
     assert(_num_platforms > 0);
-
-    const cl_context_properties context_properties[] = {
-        CL_CONTEXT_PLATFORM, (cl_context_properties) _platforms[target_platform].id, 0  // replaced [0] with target_platform
-    };
-
+    const cl_context_properties context_properties[] = { CL_CONTEXT_PLATFORM,   (cl_context_properties) _platforms[target_platform].id,    0  }; // replaced [0] with target_platform
     cl_int error;
 printf("chk4.2 ");
     /*_context = clCreateContextFromType  // not working on Bracewell. Reason ?
@@ -209,10 +178,14 @@ void build_program(psdata * data, psdata_opencl * pso, const char * file_list)
             file_name = strtok(NULL, ", \n");
         }
         free(file_list_copy);
-        char * compilation_unit_with_macros = add_field_macros_to_start_of_string(compilation_unit, data);
+        char * compilation_unit_with_macros = add_field_macros_to_start_of_string(compilation_unit, data);     //need to add   -I./include   to apply header to kernel files 
         free(compilation_unit);
         size_t cu_macros_length = strlen(compilation_unit_with_macros);
-        pso->ps_prog = clCreateProgramWithSource(_context, 1, (const char **) &compilation_unit_with_macros, &cu_macros_length, &error);
+        pso->ps_prog = clCreateProgramWithSource(  _context,   1,   (const char **) &compilation_unit_with_macros,   &cu_macros_length,   &error); 
+        // program = clCreateProgramWithSource(context, 1, (const char**) &programBuffer, &programSize, NULL); free(programBuffer);
+        // cl_programclCreateProgramWithSource (cl_context context,  cl_uint count,  const char **strings,  const size_t *lengths,  cl_int *errcode_ret)
+        // strings is an array of count pointers to optionally null-terminated character strings that make up the source code.
+        // see https://www.khronos.org/registry/OpenCL/specs/opencl-1.0.pdf#page=88
         HANDLE_CL_ERROR(error);
         free(compilation_unit_with_macros);
     }
@@ -448,18 +421,14 @@ void populate_position_cuboid_device_opencl(psdata_opencl pso,
     REAL3 corner1 = {{ x1, y1, z1 }};
     REAL3 corner2 = {{ x2, y2, z2 }};
     cl_uint3 size = {{ xsize, ysize, zsize }};
-
     cl_kernel cuboid = get_kernel(pso, "populate_position_cuboid");
-
     assert(cuboid != NULL);
 
-    HANDLE_CL_ERROR(clSetKernelArg(cuboid, NUM_PS_ARGS, sizeof(REAL3), &corner1));
-    HANDLE_CL_ERROR(clSetKernelArg(cuboid, NUM_PS_ARGS+1, sizeof(REAL3), &corner2));
-    HANDLE_CL_ERROR(clSetKernelArg(cuboid, NUM_PS_ARGS+2, sizeof(cl_uint3), &size));
+    HANDLE_CL_ERROR(clSetKernelArg(cuboid, NUM_PS_ARGS,     sizeof(REAL3),      &corner1));
+    HANDLE_CL_ERROR(clSetKernelArg(cuboid, NUM_PS_ARGS+1,   sizeof(REAL3),      &corner2));
+    HANDLE_CL_ERROR(clSetKernelArg(cuboid, NUM_PS_ARGS+2,   sizeof(cl_uint3),   &size));
 
-    HANDLE_CL_ERROR(clEnqueueNDRangeKernel(_command_queues[0], cuboid, 3, NULL,
-                                           global_work_size, local_work_size,
-                                           0, NULL, NULL));
+    HANDLE_CL_ERROR(clEnqueueNDRangeKernel(_command_queues[0], cuboid, 3, NULL, global_work_size, local_work_size, 0, NULL, NULL));
     HANDLE_CL_ERROR(clFinish(_command_queues[0]));
 }
 
@@ -501,74 +470,37 @@ void rotate_particles_device_opencl(psdata_opencl pso, REAL angle_x, REAL angle_
 psdata_opencl create_psdata_opencl(psdata * data, const char * file_list)
 {
     psdata_opencl pso;
-
     pso.host_psdata = *data;
-
     cl_mem_flags flags = CL_MEM_COPY_HOST_PTR;
-
     cl_int error;
-
     unsigned int nf = data->num_fields;
-
     unsigned int fmsize = nf*sizeof(unsigned int);
 
     pso.num_fields = nf;
-    pso.names = clCreateBuffer(_context, flags, psdata_names_size(*data), (char*) data->names, &error);
-    HANDLE_CL_ERROR(error);
-    pso.names_offsets = clCreateBuffer(_context, flags, fmsize, data->names_offsets, &error);
-    HANDLE_CL_ERROR(error);
-    pso.dimensions = clCreateBuffer(_context, flags, psdata_dimensions_size(*data), data->dimensions, &error);
-    HANDLE_CL_ERROR(error);
-    pso.num_dimensions = clCreateBuffer(_context, flags, fmsize, data->num_dimensions, &error);
-    HANDLE_CL_ERROR(error);
-    pso.dimensions_offsets = clCreateBuffer(_context, flags, fmsize, data->dimensions_offsets, &error);
-    HANDLE_CL_ERROR(error);
-    pso.entry_sizes = clCreateBuffer(_context, flags, fmsize, data->entry_sizes, &error);
-    HANDLE_CL_ERROR(error);
-    pso.data = clCreateBuffer(_context, flags, psdata_data_size(*data), data->data, &error);
-    HANDLE_CL_ERROR(error);
-    pso.data_sizes = clCreateBuffer(_context, flags, fmsize, data->data_sizes, &error);
-    HANDLE_CL_ERROR(error);
-    pso.data_offsets = clCreateBuffer(_context, flags, fmsize, data->data_offsets, &error);
-    HANDLE_CL_ERROR(error);
+    pso.names               = clCreateBuffer(_context, flags, psdata_names_size(*data), (char*) data->names, &error);               HANDLE_CL_ERROR(error);
+    pso.names_offsets       = clCreateBuffer(_context, flags, fmsize,                           data->names_offsets, &error);       HANDLE_CL_ERROR(error);
+    pso.dimensions          = clCreateBuffer(_context, flags, psdata_dimensions_size(*data),    data->dimensions, &error);          HANDLE_CL_ERROR(error);
+    pso.num_dimensions      = clCreateBuffer(_context, flags, fmsize,                           data->num_dimensions, &error);      HANDLE_CL_ERROR(error);
+    pso.dimensions_offsets  = clCreateBuffer(_context, flags, fmsize,                           data->dimensions_offsets, &error);  HANDLE_CL_ERROR(error);
+    pso.entry_sizes         = clCreateBuffer(_context, flags, fmsize,                           data->entry_sizes, &error);         HANDLE_CL_ERROR(error);
+    pso.data                = clCreateBuffer(_context, flags, psdata_data_size(*data),          data->data, &error);                HANDLE_CL_ERROR(error);
+    pso.data_sizes          = clCreateBuffer(_context, flags, fmsize,                           data->data_sizes, &error);          HANDLE_CL_ERROR(error);
+    pso.data_offsets        = clCreateBuffer(_context, flags, fmsize,                           data->data_offsets, &error);        HANDLE_CL_ERROR(error);
 
     /* Now calculate device specific sim variables */
-
- 
     unsigned int * gridres;
     PS_GET_FIELD(*data, "gridres", unsigned int, &gridres);
-
     pso.num_grid_cells = gridres[0]*gridres[1]*gridres[2];
-
     pso.po2_workgroup_size = max_work_item_size;
-
     pso.num_blocks = (pso.num_grid_cells - 1) / (2*max_work_item_size) + 1;
-
     build_program(data, &pso, file_list);
     create_kernels(&pso);
 
-    pso.block_totals = clCreateBuffer(_context, CL_MEM_READ_WRITE, pso.num_blocks*sizeof(unsigned int), NULL, &error);
-    HANDLE_CL_ERROR(error);
-
-    pso.backup_prefix_sum = clCreateBuffer(_context, CL_MEM_READ_WRITE, pso.num_grid_cells*sizeof(unsigned int), NULL, &error);
-    HANDLE_CL_ERROR(error);
-
+    pso.block_totals        = clCreateBuffer(_context, CL_MEM_READ_WRITE, pso.num_blocks*sizeof(unsigned int),      NULL, &error);      HANDLE_CL_ERROR(error);
+    pso.backup_prefix_sum   = clCreateBuffer(_context, CL_MEM_READ_WRITE, pso.num_grid_cells*sizeof(unsigned int),  NULL, &error);      HANDLE_CL_ERROR(error);
     assign_pso_kernel_args(pso);
-
     return pso;
 }
-
-#ifdef MATLAB_MEX_FILE
-/**
- * Feed specified buffer to kernel PSO_ARGS
- *
- * @param pso Buffer list to use
- */
-void opencl_use_buflist(psdata_opencl pso)
-{
-    _pso = pso;
-}
-#endif
 
 void assign_pso_kernel_args(psdata_opencl pso)
 {
@@ -586,16 +518,14 @@ void assign_pso_kernel_args(psdata_opencl pso)
     HANDLE_CL_ERROR(clSetKernelArg(prefix_sum, NUM_PS_ARGS + 3, sizeof(unsigned int), &pso.num_blocks));
 
     cl_kernel copy_celloffset_to_backup = get_kernel(pso, "copy_celloffset_to_backup");
-
     assert(copy_celloffset_to_backup != NULL);
-
+    
     HANDLE_CL_ERROR(clSetKernelArg(copy_celloffset_to_backup, NUM_PS_ARGS, sizeof(cl_mem), &pso.backup_prefix_sum));
     HANDLE_CL_ERROR(clSetKernelArg(copy_celloffset_to_backup, NUM_PS_ARGS+1, sizeof(unsigned int), &pso.num_grid_cells));
 
     cl_kernel insert_particles_in_bin_array = get_kernel(pso, "insert_particles_in_bin_array");
-
     assert(insert_particles_in_bin_array != NULL);
-
+    
     HANDLE_CL_ERROR(clSetKernelArg(insert_particles_in_bin_array, NUM_PS_ARGS, sizeof(cl_mem), &pso.backup_prefix_sum));
 }
 
@@ -651,31 +581,19 @@ void free_psdata_opencl(psdata_opencl * pso)
 void sync_psdata_host_to_device(psdata data, psdata_opencl pso, int full)
 {
     unsigned int nf = data.num_fields;
-
     unsigned int fmsize = nf*sizeof(unsigned int);
 
-    HANDLE_CL_ERROR(clEnqueueWriteBuffer(_command_queues[0], pso.data, CL_FALSE, 0,
-                                         psdata_data_size(data), data.data, 0, NULL, NULL));
-
+    HANDLE_CL_ERROR(clEnqueueWriteBuffer(_command_queues[0], pso.data, CL_FALSE, 0,  psdata_data_size(data), data.data, 0, NULL, NULL));
     if (full) {
-        HANDLE_CL_ERROR(clEnqueueWriteBuffer(_command_queues[0], pso.names, CL_FALSE, 0,
-                                             psdata_names_size(data), (char*) data.names, 0, NULL, NULL));
-        HANDLE_CL_ERROR(clEnqueueWriteBuffer(_command_queues[0], pso.names_offsets, CL_FALSE, 0,
-                                             fmsize, data.names_offsets, 0, NULL, NULL));
-        HANDLE_CL_ERROR(clEnqueueWriteBuffer(_command_queues[0], pso.dimensions, CL_FALSE, 0,
-                                             psdata_dimensions_size(data), data.dimensions, 0, NULL, NULL));
-        HANDLE_CL_ERROR(clEnqueueWriteBuffer(_command_queues[0], pso.num_dimensions, CL_FALSE, 0,
-                                             fmsize, data.num_dimensions, 0, NULL, NULL));
-        HANDLE_CL_ERROR(clEnqueueWriteBuffer(_command_queues[0], pso.dimensions_offsets, CL_FALSE, 0,
-                                             fmsize, data.dimensions_offsets, 0, NULL, NULL));
-        HANDLE_CL_ERROR(clEnqueueWriteBuffer(_command_queues[0], pso.entry_sizes, CL_FALSE, 0,
-                                             fmsize, data.entry_sizes, 0, NULL, NULL));
-        HANDLE_CL_ERROR(clEnqueueWriteBuffer(_command_queues[0], pso.data_sizes, CL_FALSE, 0,
-                                             fmsize, data.data_sizes, 0, NULL, NULL));
-        HANDLE_CL_ERROR(clEnqueueWriteBuffer(_command_queues[0], pso.data_offsets, CL_FALSE, 0,
-                                             fmsize, data.data_offsets, 0, NULL, NULL));
+        HANDLE_CL_ERROR(clEnqueueWriteBuffer(_command_queues[0], pso.names, CL_FALSE, 0,                        psdata_names_size(data),        (char*) data.names, 0, NULL, NULL));
+        HANDLE_CL_ERROR(clEnqueueWriteBuffer(_command_queues[0], pso.names_offsets, CL_FALSE, 0,  fmsize,       data.names_offsets,             0, NULL, NULL));
+        HANDLE_CL_ERROR(clEnqueueWriteBuffer(_command_queues[0], pso.dimensions, CL_FALSE, 0,                   psdata_dimensions_size(data),   data.dimensions, 0, NULL, NULL));
+        HANDLE_CL_ERROR(clEnqueueWriteBuffer(_command_queues[0], pso.num_dimensions, CL_FALSE, 0,  fmsize,      data.num_dimensions,            0, NULL, NULL));
+        HANDLE_CL_ERROR(clEnqueueWriteBuffer(_command_queues[0], pso.dimensions_offsets, CL_FALSE, 0,  fmsize,  data.dimensions_offsets,        0, NULL, NULL));
+        HANDLE_CL_ERROR(clEnqueueWriteBuffer(_command_queues[0], pso.entry_sizes, CL_FALSE, 0,  fmsize,         data.entry_sizes,               0, NULL, NULL));
+        HANDLE_CL_ERROR(clEnqueueWriteBuffer(_command_queues[0], pso.data_sizes, CL_FALSE, 0,  fmsize,          data.data_sizes,                0, NULL, NULL));
+        HANDLE_CL_ERROR(clEnqueueWriteBuffer(_command_queues[0], pso.data_offsets, CL_FALSE, 0,  fmsize,        data.data_offsets,              0, NULL, NULL));
     }
-
     HANDLE_CL_ERROR(clFinish(_command_queues[0]));
 }
 
@@ -691,11 +609,9 @@ void sync_psdata_fields_host_to_device(psdata data, psdata_opencl pso, size_t nu
             note(1, "Field %s not found.\n", field_names[i]);
             continue;
         }
-
         HANDLE_CL_ERROR(clEnqueueWriteBuffer(_command_queues[0], pso.data, CL_FALSE, data.data_offsets[f],
                                              data.data_sizes[f], (char*) data.data + data.data_offsets[f], 0, NULL, NULL));
     }
-
     HANDLE_CL_ERROR(clFinish(_command_queues[0]));
 }
 

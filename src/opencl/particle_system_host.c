@@ -196,7 +196,7 @@ void build_program(psdata * data, psdata_opencl * pso, const char * file_list)
     if (build_error != CL_SUCCESS) {
         char * error_log;
         size_t log_length;
-        HANDLE_CL_ERROR(clGetProgramBuildInfo(  pso->ps_prog,    _platforms[target_platform].devices[target_device].id,  CL_PROGRAM_BUILD_LOG,   0,  NULL,   &log_length    )); //replaced [0] with [target_platform] ...[target_device]
+        HANDLE_CL_ERROR(clGetProgramBuildInfo(  pso->ps_prog,   _platforms[target_platform].devices[target_device].id,  CL_PROGRAM_BUILD_LOG,   0,  NULL,   &log_length    )); //replaced [0] with [target_platform] ...[target_device]
         error_log = malloc(log_length*sizeof(char));
         HANDLE_CL_ERROR(clGetProgramBuildInfo(  pso->ps_prog,   _platforms[target_platform].devices[target_device].id,  CL_PROGRAM_BUILD_LOG,   log_length,     error_log,  NULL    )); //replaced [0] with [target_platform] ...[target_device]
         printf("%s\n", error_log);

@@ -210,7 +210,7 @@ void init_psdata_fluid( psdata * data, int pnum, REAL mass, REAL timestep, REAL 
         sizeof(REAL),
 
         sizeof(REAL),
-        sizeof(unsigned int),
+        sizeof(unsigned int),name
         sizeof(unsigned int),
         sizeof(unsigned int),
         sizeof(unsigned int),
@@ -249,7 +249,6 @@ void init_psdata_fluid( psdata * data, int pnum, REAL mass, REAL timestep, REAL 
         for (j = 0; j < data->num_dimensions[i]; ++j) {
             field_data_size *= data->dimensions[data->dimensions_offsets[i]+j];
         }
-
         data->data_sizes[i] = field_data_size;
         data->data_offsets[i] = data_size;
 

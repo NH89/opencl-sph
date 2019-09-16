@@ -353,11 +353,17 @@ inline int get_cell_at_offset (global uint * gridres, uint original, int x, int 
 
     return zn * layersize + yn * rowlength + xn;
 }
+
 kernel void find_particle_bins (PSO_ARGS) {
-    USE_FIELD(position, REAL) USE_FIELD(gridbounds, REAL)
-    USE_FIELD(gridres, uint)    USE_FIELD(gridcell, uint) USE_FIELD(gridcount, uint)
-    USE_FIELD_FIRST_VALUE(pnum, uint) USE_FIELD_FIRST_VALUE(n, uint)
-    USE_FIELD_FIRST_VALUE(smoothingradius, REAL)
+    USE_FIELD(position, REAL) 
+    USE_FIELD(gridbounds, REAL)
+    USE_FIELD(gridres, uint)    
+    USE_FIELD(gridcell, uint) 
+    USE_FIELD(gridcount, uint)
+    
+    USE_FIELD_FIRST_VALUE(pnum, uint) 
+    USE_FIELD_FIRST_VALUE(n, uint)
+    USE_FIELD_FIRST_VALUE(smoothingradius, REAL) 
 
     size_t i = get_global_id(0);
 
@@ -373,6 +379,7 @@ kernel void find_particle_bins (PSO_ARGS) {
 
     gridcell[i] = gc.z * gridres[0] * gridres[1] + gc.y * gridres[0] + gc.x;
 }
+
 kernel void zero_gridcount (PSO_ARGS) {
     USE_FIELD(gridcount, uint) USE_FIELD(gridres, uint)
 
@@ -382,6 +389,7 @@ kernel void zero_gridcount (PSO_ARGS) {
 
     gridcount[i] = 0;
 }
+
 kernel void count_particles_in_bins (PSO_ARGS) {
     USE_FIELD(gridcell, uint) USE_FIELD(gridcount, uint) USE_FIELD_FIRST_VALUE(n, uint)
     size_t i = get_global_id(0);
@@ -390,8 +398,11 @@ kernel void count_particles_in_bins (PSO_ARGS) {
 
     atomic_inc (&gridcount[gridcell[i]]);
 }
+
 kernel void prefix_sum (PSO_ARGS, local uint * temp, uint array_size, global uint * block_totals, uint num_blocks) {
-    USE_FIELD(gridcount, uint) USE_FIELD(celloffset, uint) USE_FIELD(gridres, uint)
+    USE_FIELD(gridcount, uint) 
+    USE_FIELD(celloffset, uint) 
+    USE_FIELD(gridres, uint) 
 
     size_t i_global = get_global_id(0);
     size_t i_local = get_local_id(0);
@@ -497,6 +508,7 @@ kernel void prefix_sum (PSO_ARGS, local uint * temp, uint array_size, global uin
         if (in_array_2) celloffset[i + n/2 + global_offset] += block_totals[g_id-1];
     }
 }
+
 kernel void copy_celloffset_to_backup (PSO_ARGS, global uint * backup_prefix_sum, uint num_grid_cells) {
     USE_FIELD(celloffset, uint)
 
@@ -504,18 +516,48 @@ kernel void copy_celloffset_to_backup (PSO_ARGS, global uint * backup_prefix_sum
 
     if (i < num_grid_cells) backup_prefix_sum[i] = celloffset[i];
 }
+
 kernel void insert_particles_in_bin_array (PSO_ARGS, global uint * backup_prefix_sum) {
-    USE_FIELD_FIRST_VALUE(n, uint) USE_FIELD(gridcell, uint) USE_FIELD(cellparticles, uint)
+    USE_FIELD_FIRST_VALUE(n, uint) 
+    
+    USE_FIELD(gridcell, uint) 
+    USE_FIELD(cellparticles, uint) 
 
     size_t i = get_global_id(0);
 
-    if (i < n) cellparticles[atomic_inc(backup_prefix_sum + gridcell[i])] = i;   /// ?? what is this really doing ? 
-}// looks like it writes the global_id of the current particle to cellparticles[  ]
+    if (i < n) cellparticles[atomic_inc(backup_prefix_sum + gridcell[i])] = i; // writes the global_id of the current particle to cellparticles[  ]
+}
+
+kernel void full_copy(){                // NB depends on selection of buffers &=> type of particle sim. fluid/solid/multi
+    USE_FIELD_FIRST_VALUE(n, uint) 
+    uint i = get_global_id(0);
+    if (i >= n) return;
+    
+    // copy current data to Temp buffers
+    USE_FIELD(cellparticles, uint) 
+    USE_FIELD(  )  // for each buffer and temp buffer
+    
+    // tempbuff[i] = buff[cellparticles[i]]; // see create_psdata_opencl(...) in particle_system_host.c 
+    
+    
+    
+    
+    
+    // pointer swap to transfer sorted buffers // prob done at host.
+    
+    
+    
+    // NB elastic interactions - track beyond immediae adjacent bins.
+    // need updated pointers for connected particles, and store those pointers with each particle 
+    // NB must attach/detach both sides of an elastic connection when made/broken
+    
+    
+}
 
 ////////// Particle creation & transformation //////////
 
 kernel void populate_position_cuboid (PSO_ARGS, REAL3 corner1, REAL3 corner2, uint3 size) {
-    if (get_work_dim() < 3) return;// (-1.0, -1.0, -1.0), (1.0, 1.0, 1.0), (6, 6, 6) in testopencl.c
+    if (get_work_dim() < 3) return;                        // (-1.0, -1.0, -1.0), (1.0, 1.0, 1.0), (6, 6, 6) in testopencl.c
 
     size_t i = get_global_id(0);
     size_t j = get_global_id(1);
@@ -523,26 +565,30 @@ kernel void populate_position_cuboid (PSO_ARGS, REAL3 corner1, REAL3 corner2, ui
 
     if (i >= size.x || j >= size.y || k >= size.z) return;
 
-    USE_FIELD(position, REAL) USE_FIELD_FIRST_VALUE(pnum, uint) USE_FIELD(n, uint) //private type n = *((global uint *) n_m);
+    USE_FIELD(position, REAL) 
+    USE_FIELD_FIRST_VALUE(pnum, uint) 
+    USE_FIELD(n, uint) //private type n = *((global uint *) n_m);
 
     uint p_ix = i + size.x*j + size.x*size.y*k;
 
     if (p_ix >= pnum) return;
-    else if (p_ix == pnum - 1) n[0] = pnum;   // n[0] will be the lesser of pnum or the number reuired to fill the cuboid ??
+    else if (p_ix == pnum - 1) n[0] = pnum;   // n[0] will be the lesser of pnum or the number reuired to fill the cuboid
     else if (i == size.x - 1 && j == size.y - 1 && k == size.z - 1) n[0] = size.x*size.y*size.z;
 
-    REAL3 p = (REAL3) (((REAL) i/ (REAL) (size.x-1)) * (corner2.x - corner1.x) + corner1.x,
-                           ((REAL) j/ (REAL) (size.y-1)) * (corner2.y - corner1.y) + corner1.y,
-                           ((REAL) k/ (REAL) (size.z-1)) * (corner2.z - corner1.z) + corner1.z);
+    REAL3 p = (REAL3)  (((REAL) i/ (REAL) (size.x-1)) * (corner2.x - corner1.x) + corner1.x,
+                        ((REAL) j/ (REAL) (size.y-1)) * (corner2.y - corner1.y) + corner1.y,
+                        ((REAL) k/ (REAL) (size.z-1)) * (corner2.z - corner1.z) + corner1.z);
 
     vstore3(p, p_ix, position);//store vector p at p_ix in array 'position' 
 }
+
 kernel void rotate_particles (PSO_ARGS, REAL angle_x, REAL angle_y, REAL angle_z) {
     // ZYX
-    USE_FIELD(position, REAL) USE_FIELD_FIRST_VALUE(n, uint)
+    USE_FIELD(position, REAL) 
+    
+    USE_FIELD_FIRST_VALUE(n, uint) 
 
     uint i = get_global_id(0);
-
     if (i >= n) return;
 
     REAL rotation_x[9];
@@ -583,7 +629,6 @@ kernel void rotate_particles (PSO_ARGS, REAL angle_x, REAL angle_y, REAL angle_z
         rotation[I_10]*pos.x + rotation[I_11]*pos.y + rotation[I_12]*pos.z,
         rotation[I_20]*pos.x + rotation[I_21]*pos.y + rotation[I_22]*pos.z
     );
-
     vstore3(rpos, i, position);
 }
 
@@ -591,30 +636,20 @@ kernel void rotate_particles (PSO_ARGS, REAL angle_x, REAL angle_y, REAL angle_z
 
 kernel void compute_density (PSO_ARGS) {
     USE_GRID_PROPS
-
-    USE_FIELD_FIRST_VALUE(pnum, uint) USE_FIELD_FIRST_VALUE(n, uint) USE_FIELD_FIRST_VALUE(mass, REAL)
-    USE_FIELD(position, REAL) USE_FIELD(density, REAL) USE_FIELD_FIRST_VALUE(smoothingradius, REAL)
+    USE_FIELD_FIRST_VALUE(pnum, uint)
+    USE_FIELD_FIRST_VALUE(n, uint) 
+    USE_FIELD_FIRST_VALUE(mass, REAL)
+    
+    USE_FIELD(position, REAL) 
+    USE_FIELD(density, REAL) 
+    
+    USE_FIELD_FIRST_VALUE(smoothingradius, REAL)
 
     unsigned int i = get_global_id(0);
-
     if (i >= n) return;
-
     REAL3 ipos = vload3(i, position);
-
     density[i] = 0;
-
-/*//     FOR_PARTICLES_IN_RANGE(i, j,
-//         j = cellparticles[jp];
-// 
-//         REAL3 jpos = vload3(j, position);
-// 
-//         REAL3 diff = jpos - ipos;
-// 
-//         REAL dist = length(diff);
-// 
-//         density[i] += applyKernel(dist, smoothingradius);
-//     )*/  
-    {
+    {//FOR_PARTICLES_IN_RANGE
     int gx, gy, gz;
     for (gz = -1; gz <= 1; ++gz)
         for (gy = -1; gy <= 1; ++gy){
@@ -633,26 +668,27 @@ kernel void compute_density (PSO_ARGS) {
             }
         }
     }
-
     density[i] *= mass;
 }
 kernel void step_forward (PSO_ARGS) {
-    USE_FIELD_FIRST_VALUE(mass, REAL) USE_FIELD_FIRST_VALUE(timestep, REAL)
-    USE_FIELD_FIRST_VALUE(n, uint)
-
-    USE_FIELD(acceleration, REAL) USE_FIELD(force, REAL) USE_FIELD(position, REAL)
-    USE_FIELD(velocity, REAL) USE_FIELD(veleval, REAL) USE_FIELD(posnext, REAL)
+    USE_FIELD_FIRST_VALUE(n, uint) 
+    uint i = get_global_id(0);
+    if (i >= n) return;
+    
+    USE_FIELD_FIRST_VALUE(mass, REAL) 
+    USE_FIELD_FIRST_VALUE(timestep, REAL) 
+    
+    USE_FIELD(acceleration, REAL) 
+    USE_FIELD(force, REAL) 
+    USE_FIELD(position, REAL)
+    USE_FIELD(velocity, REAL) 
+    USE_FIELD(veleval, REAL) 
+    USE_FIELD(posnext, REAL) 
     USE_FIELD(gravity, REAL)
 
-    uint i = get_global_id(0);
-
-    if (i >= n) return;
-
     REAL3 g = vload3(0, gravity);
-
     REAL3 f = vload3(i, force);
     REAL3 a = f / mass + g;
-
     vstore3(a, i, acceleration);
 
     REAL3 v = vload3(i, velocity);
@@ -660,7 +696,6 @@ kernel void step_forward (PSO_ARGS) {
     REAL3 veval = (v + vnext) / 2;
 
     REAL3 p = vload3(i, position);
-
     REAL3 pnext = p + timestep * vnext;
 
     vstore3(pnext, i, position);

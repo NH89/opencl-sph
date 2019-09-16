@@ -47,11 +47,6 @@ typedef struct {
     unsigned int num_blocks;
 } psdata_opencl;
 
-#ifdef MATLAB_MEX_FILE
-psdata_opencl * get_stored_psdata_opencl();
-void free_stored_psdata_opencl();
-void opencl_use_buflist(psdata_opencl pso);
-#endif
 
 void init_opencl();
 psdata_opencl create_psdata_opencl(psdata * data, const char * file_list);

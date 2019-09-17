@@ -293,7 +293,7 @@ static psdata_field_spec * create_psdata_field_spec(char * line, psdata_field_sp
 #undef TYPE_PAD_LENGTH
 #undef DATA_PAD_LENGTH
 }
-static void populate_psdata(psdata * data, psdata_field_spec * list) {
+static void populate_psdata(psdata * data, psdata_field_spec * list) {       // * list (aka reordered) will contain the list of parameter names from the .conf file
     psdata_field_spec * field_cursor = list;
 
     unsigned int num_fields = 0;
@@ -343,15 +343,16 @@ static void populate_psdata(psdata * data, psdata_field_spec * list) {
         ++f;
     }
 
-    data->names = malloc(names_length * sizeof(char));
+    data->names = malloc(names_length * sizeof(char));                                      // mallocs data->names
     data->dimensions = malloc(dimensions_length * sizeof(unsigned int));
-    data->data = calloc(data_size, 1);
+    data->data = calloc(data_size, 1);                                                      // callocs main data array
+    data->tempdata = calloc(data_size, 1);                                                  // Proposed change: add tempdata  - done
 
     // Copy in data
     field_cursor = list;
     f = 0;
     while (field_cursor != NULL) {
-        strcpy(((char*)data->names) + data->names_offsets[f], field_cursor->name);
+        strcpy(((char*)data->names) + data->names_offsets[f], field_cursor->name);          // fills data->names with   field_cursor->name  working through "list"
 
         memcpy(data->dimensions + data->dimensions_offsets[f], field_cursor->dimensions, field_cursor->num_dimensions * sizeof(unsigned int));
 
@@ -460,7 +461,7 @@ static psdata_field_spec * sort_field_spec_list_by_type_size_descending(psdata_f
 // Constraints for
 //void setUpConstraints()
 
-void build_psdata_from_string(psdata * data, const char * string) {
+void build_psdata_from_string(psdata * data, const char * string) {        // * string  is  get_config_section("psdata_specification") of the config file.
     char * string_copy = malloc((strlen(string)+1) * sizeof(char));
     strcpy(string_copy, string);
 
@@ -470,7 +471,7 @@ void build_psdata_from_string(psdata * data, const char * string) {
     psdata_field_spec * first = NULL;
     psdata_field_spec * current = NULL;
 
-    while (endline < endstring) {
+    while (endline < endstring) {                                           // work through string line byline, create a 'psdata_field_spec' for each field.
         char * line = strtok(endline + 1, "\n");
         if (line == NULL) break;
 
@@ -489,8 +490,8 @@ void build_psdata_from_string(psdata * data, const char * string) {
 
     psdata_field_spec * reordered = sort_field_spec_list_by_type_size_descending(first);
 
-    populate_psdata(data, reordered);
-
+    populate_psdata(data, reordered);                                       // reordered will contain the list of parameter names from the .conf file
+                                                                            // populate_psdata(..) fills data->names with   field_cursor->name  working through "reordered".
     free_psdata_field_spec_list(reordered);
 }
 

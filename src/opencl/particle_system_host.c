@@ -144,8 +144,8 @@ void call_kernel_device_opencl(psdata_opencl pso, const char * kernel_name, cl_u
 }
 
 void build_program(psdata * data, psdata_opencl * pso, const char * file_list)
-{
-    cl_int error;
+{                                                                                       // nb file_list of .cl files from "opencl_kernel_files" section of the config file
+    cl_int error;                                                                       // pso->ps_prog = clCreateProgramWithSource(...) line 184
     {                                                                                   /* Get file data */
         char * exe_path;
         exe_path = OPENCL_SPH_KERNELS_ROOT;
@@ -170,18 +170,18 @@ void build_program(psdata * data, psdata_opencl * pso, const char * file_list)
             size_t new_length = compilation_unit_len + file_length / sizeof(char);
             char * compilation_unit_temp = malloc((new_length + 1) * sizeof(char));
             strcpy(compilation_unit_temp, compilation_unit);
-            fread(compilation_unit_temp + compilation_unit_len, sizeof(char), file_length, f);
+            fread(compilation_unit_temp + compilation_unit_len, sizeof(char), file_length, f);    // fread(...) each .cl file
             fclose(f);
             compilation_unit_temp[new_length] = '\0';
             free(compilation_unit);
             compilation_unit = compilation_unit_temp;
             file_name = strtok(NULL, ", \n");
         }
-        free(file_list_copy);
+        free(file_list_copy);                                                                                   // compilation_unit = str of all .cl files
         char * compilation_unit_with_macros = add_field_macros_to_start_of_string(compilation_unit, data);     //need to add   -I./include   to apply header to kernel files 
         free(compilation_unit);
         size_t cu_macros_length = strlen(compilation_unit_with_macros);
-        pso->ps_prog = clCreateProgramWithSource(  _context,   1,   (const char **) &compilation_unit_with_macros,   &cu_macros_length,   &error); 
+        pso->ps_prog = clCreateProgramWithSource(  _context,   1,   (const char **) &compilation_unit_with_macros,   &cu_macros_length,   &error);          //  clCreateProgramWithSource(...) happens here 
         // program = clCreateProgramWithSource(context, 1, (const char**) &programBuffer, &programSize, NULL); free(programBuffer);
         // cl_programclCreateProgramWithSource (cl_context context,  cl_uint count,  const char **strings,  const size_t *lengths,  cl_int *errcode_ret)
         // strings is an array of count pointers to optionally null-terminated character strings that make up the source code.
@@ -205,10 +205,10 @@ void build_program(psdata * data, psdata_opencl * pso, const char * file_list)
     }
 }
 
-char * add_field_macros_to_start_of_string(const char * string, psdata * data)  /* Allocates new string */
+char * add_field_macros_to_start_of_string(const char * string, psdata * data)  /* Allocates new string */  // *string = compilation_unit = str of all .cl files specified in .conf file
 {
-    const char * start = "#define ";
-    const char * middle = " (((global char *) data) + data_offsets[";
+    const char * start = "#define ";                                            // At top of OpenCL string, for each data field:   #define 'dataField'_m  (((global char *) data) + data_offsets['index'])
+    const char * middle = " (((global char *) data) + data_offsets[";           // Provides pointers to data within the cl_mem data buffer.
     const char * end = "])\n";
 
     size_t start_size = strlen(start);
@@ -225,14 +225,15 @@ char * add_field_macros_to_start_of_string(const char * string, psdata * data)  
     char * newstring_ptr = newstring;
 
     for (f = 0; f < data->num_fields; ++f) {
-        strcpy(newstring_ptr, start); newstring_ptr += start_size;
-        strcpy(newstring_ptr, data->names + data->names_offsets[f]); newstring_ptr += strlen(data->names + data->names_offsets[f]);
-        strcpy(newstring_ptr, "_m"); newstring_ptr += 2;
-        strcpy(newstring_ptr, middle); newstring_ptr += middle_size;
-        sprintf(newstring_ptr, "%d", f); newstring_ptr += (int)(f == 0 ? 1 : floor(log10(f)) + 1);
-        strcpy(newstring_ptr, end); newstring_ptr += end_size;
+        strcpy(newstring_ptr, start);                                   newstring_ptr += start_size;
+        strcpy(newstring_ptr, data->names + data->names_offsets[f]);    newstring_ptr += strlen(data->names + data->names_offsets[f]);
+        strcpy(newstring_ptr, "_m");                                    newstring_ptr += 2;                                                      //  "_m" added to data field names here, 
+        strcpy(newstring_ptr, middle);                                  newstring_ptr += middle_size;
+        sprintf(newstring_ptr, "%d", f);                                newstring_ptr += (int)(f == 0 ? 1 : floor(log10(f)) + 1);
+        strcpy(newstring_ptr, end);                                     newstring_ptr += end_size;
     }
     strcpy(newstring_ptr, string);
+    printf("\nOpenCL string for device program :\n %s \n\n",newstring);                                                                                                //  print the string to stdout for inspection, perhaps redirect to a file.
     return newstring;
 }
 
@@ -484,6 +485,7 @@ psdata_opencl create_psdata_opencl(psdata * data, const char * file_list)
     pso.dimensions_offsets  = clCreateBuffer(_context, flags, fmsize,                           data->dimensions_offsets, &error);  HANDLE_CL_ERROR(error);
     pso.entry_sizes         = clCreateBuffer(_context, flags, fmsize,                           data->entry_sizes, &error);         HANDLE_CL_ERROR(error);
     pso.data                = clCreateBuffer(_context, flags, psdata_data_size(*data),          data->data, &error);                HANDLE_CL_ERROR(error);
+    pso.tempdata            = clCreateBuffer(_context, flags, psdata_data_size(*data),          data->data, &error);                HANDLE_CL_ERROR(error);                  // proposed change : add "tempdata" clone of "data"   - done 
     pso.data_sizes          = clCreateBuffer(_context, flags, fmsize,                           data->data_sizes, &error);          HANDLE_CL_ERROR(error);
     pso.data_offsets        = clCreateBuffer(_context, flags, fmsize,                           data->data_offsets, &error);        HANDLE_CL_ERROR(error);
 
@@ -493,7 +495,7 @@ psdata_opencl create_psdata_opencl(psdata * data, const char * file_list)
     pso.num_grid_cells = gridres[0]*gridres[1]*gridres[2];
     pso.po2_workgroup_size = max_work_item_size;
     pso.num_blocks = (pso.num_grid_cells - 1) / (2*max_work_item_size) + 1;
-    build_program(data, &pso, file_list);
+    build_program(data, &pso, file_list);                                                                                                                                   //  build_program(...)
     create_kernels(&pso);
 
     pso.block_totals        = clCreateBuffer(_context, CL_MEM_READ_WRITE, pso.num_blocks*sizeof(unsigned int),      NULL, &error);      HANDLE_CL_ERROR(error);
@@ -512,21 +514,21 @@ void assign_pso_kernel_args(psdata_opencl pso)
 
     assert(prefix_sum != NULL);
 
-    HANDLE_CL_ERROR(clSetKernelArg(prefix_sum, NUM_PS_ARGS, 2*pso.po2_workgroup_size*sizeof(unsigned int), NULL));
-    HANDLE_CL_ERROR(clSetKernelArg(prefix_sum, NUM_PS_ARGS + 1, sizeof(unsigned int), &pso.num_grid_cells));
-    HANDLE_CL_ERROR(clSetKernelArg(prefix_sum, NUM_PS_ARGS + 2, sizeof(cl_mem), &pso.block_totals));
-    HANDLE_CL_ERROR(clSetKernelArg(prefix_sum, NUM_PS_ARGS + 3, sizeof(unsigned int), &pso.num_blocks));
+    HANDLE_CL_ERROR(clSetKernelArg( prefix_sum,  NUM_PS_ARGS    ,  2*pso.po2_workgroup_size*sizeof(unsigned int), NULL));
+    HANDLE_CL_ERROR(clSetKernelArg( prefix_sum,  NUM_PS_ARGS + 1,  sizeof(unsigned int)                         , &pso.num_grid_cells));
+    HANDLE_CL_ERROR(clSetKernelArg( prefix_sum,  NUM_PS_ARGS + 2,  sizeof(cl_mem)                               , &pso.block_totals));
+    HANDLE_CL_ERROR(clSetKernelArg( prefix_sum,  NUM_PS_ARGS + 3,  sizeof(unsigned int)                         , &pso.num_blocks));
 
     cl_kernel copy_celloffset_to_backup = get_kernel(pso, "copy_celloffset_to_backup");
     assert(copy_celloffset_to_backup != NULL);
     
-    HANDLE_CL_ERROR(clSetKernelArg(copy_celloffset_to_backup, NUM_PS_ARGS, sizeof(cl_mem), &pso.backup_prefix_sum));
-    HANDLE_CL_ERROR(clSetKernelArg(copy_celloffset_to_backup, NUM_PS_ARGS+1, sizeof(unsigned int), &pso.num_grid_cells));
+    HANDLE_CL_ERROR(clSetKernelArg( copy_celloffset_to_backup, NUM_PS_ARGS  , sizeof(cl_mem)      , &pso.backup_prefix_sum));
+    HANDLE_CL_ERROR(clSetKernelArg( copy_celloffset_to_backup, NUM_PS_ARGS+1, sizeof(unsigned int), &pso.num_grid_cells));
 
     cl_kernel insert_particles_in_bin_array = get_kernel(pso, "insert_particles_in_bin_array");
     assert(insert_particles_in_bin_array != NULL);
     
-    HANDLE_CL_ERROR(clSetKernelArg(insert_particles_in_bin_array, NUM_PS_ARGS, sizeof(cl_mem), &pso.backup_prefix_sum));
+    HANDLE_CL_ERROR(clSetKernelArg( insert_particles_in_bin_array, NUM_PS_ARGS, sizeof(cl_mem)    , &pso.backup_prefix_sum));
 }
 
 void set_kernel_args_to_pso(psdata_opencl pso, cl_kernel kernel)
@@ -538,9 +540,11 @@ void set_kernel_args_to_pso(psdata_opencl pso, cl_kernel kernel)
     HANDLE_CL_ERROR(clSetKernelArg(kernel, 4, sizeof(cl_mem), &pso.num_dimensions));
     HANDLE_CL_ERROR(clSetKernelArg(kernel, 5, sizeof(cl_mem), &pso.dimensions_offsets));
     HANDLE_CL_ERROR(clSetKernelArg(kernel, 6, sizeof(cl_mem), &pso.entry_sizes));
-    HANDLE_CL_ERROR(clSetKernelArg(kernel, 7, sizeof(cl_mem), &pso.data));
+    HANDLE_CL_ERROR(clSetKernelArg(kernel, 7, sizeof(cl_mem), &pso.data));              // proposed change : add pso.tempdata  , which Kernelarg num should it be ? 
+    
     HANDLE_CL_ERROR(clSetKernelArg(kernel, 8, sizeof(cl_mem), &pso.data_sizes));
     HANDLE_CL_ERROR(clSetKernelArg(kernel, 9, sizeof(cl_mem), &pso.data_offsets));
+    HANDLE_CL_ERROR(clSetKernelArg(kernel, 10, sizeof(cl_mem), &pso.tempdata));         // tempdata
 }
 
 /**
@@ -555,6 +559,7 @@ void free_psdata_opencl(psdata_opencl * pso)
     HANDLE_CL_ERROR(clReleaseMemObject(pso->dimensions_offsets));
     HANDLE_CL_ERROR(clReleaseMemObject(pso->entry_sizes));
     HANDLE_CL_ERROR(clReleaseMemObject(pso->data));
+    HANDLE_CL_ERROR(clReleaseMemObject(pso->tempdata));             // added tempdata
     HANDLE_CL_ERROR(clReleaseMemObject(pso->data_sizes));
     HANDLE_CL_ERROR(clReleaseMemObject(pso->data_offsets));
     HANDLE_CL_ERROR(clReleaseMemObject(pso->block_totals));

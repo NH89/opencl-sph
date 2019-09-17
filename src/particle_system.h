@@ -11,6 +11,14 @@
     assert(__fldpos != -1); \
     *pointer_to_pointer = PS_P_PTR(data, __fldpos, type);}
 
+// #define PS_GET_FIELD(data, name, type, pointer_to_pointer) {\
+//     int __fldpos = get_field_psdata(data, name); \
+//     assert(__fldpos != -1); \
+//     *pointer_to_pointer = (type*) ((char*) (data).data + (data).data_offsets[__fldpos]); }
+
+// would reduce to 
+//  *pointer_to_pointer = (type*) ((char*) (data).data + (data).data_offsets[NAME]);
+    
 typedef struct {
     /**
      * The numerical data is all stored in a contiguous array at data, to
@@ -25,6 +33,7 @@ typedef struct {
     unsigned int * entry_sizes;
 
     void * data;
+    void * tempdata;
     unsigned int * data_sizes;
     unsigned int * data_offsets;
 
@@ -41,17 +50,17 @@ void write_psdata_ply(psdata, int number, const char * Case);
 
 
 void init_psdata_fluid( psdata * data, int pnum, REAL mass, REAL timestep, REAL smoothingradius,
-       REAL xbound1, REAL ybound1, REAL zbound1, REAL xbound2, REAL ybound2, REAL zbound2 );
+       REAL xbound1, REAL ybound1, REAL zbound1, REAL xbound2, REAL ybound2, REAL zbound2 );        // unused ? 
 
 int get_field_psdata( psdata data, const char * name );
-void set_field_psdata( psdata * data, const char * name, void * field, unsigned int size, unsigned int offset );
+void set_field_psdata( psdata * data, const char * name, void * field, unsigned int size, unsigned int offset ); // used only in   init_psdata_fluid(...)
 
 unsigned int psdata_names_size( psdata data );
 unsigned int psdata_dimensions_size( psdata data );
 unsigned int psdata_data_size( psdata data );
 
-int create_host_field_psdata( psdata * data, const char * name, void * field, unsigned int size );
-int get_host_field_psdata( psdata * data, const char * name );
+int create_host_field_psdata( psdata * data, const char * name, void * field, unsigned int size );  // unused ?
+int get_host_field_psdata( psdata * data, const char * name );                                      // unused ?
 
 void free_psdata( psdata * data );
 

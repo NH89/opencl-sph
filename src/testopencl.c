@@ -38,10 +38,10 @@ int main(int argc, char *argv[])
     PS_GET_FIELD(data, "rotation", REAL, &rotation);                                                if (verbose) printf("chk4 ");
     
     init_opencl();                                                                                  if (verbose) printf("chk5 ");  
-    psdata_opencl pso = create_psdata_opencl(&data, get_config_section("opencl_kernel_files"));     if (verbose) printf("chk5.1 ");         
-    populate_position_cuboid_device_opencl(pso, -1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 6, 6, 6);          if (verbose) printf("chk5.2 "); 
+    psdata_opencl pso = create_psdata_opencl(&data, get_config_section("opencl_kernel_files"));     if (verbose) printf("chk5.1 ");     // NB psdata data , psdata_opencl pso (struct holding cl_mem buffers)    
+    populate_position_cuboid_device_opencl(pso, -1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 6, 6, 6);          if (verbose) printf("chk5.2 ");     // first kernel call  "populate_position_cuboid"
                                                                                         //work group size=0 (auto) but 512 for others
-    call_for_all_particles_device_opencl(pso, "init_original_position");                            if (verbose) printf("chk5.3 "); 
+    call_for_all_particles_device_opencl(pso, "init_original_position");                            if (verbose) printf("chk5.3 ");     
     rotate_particles_device_opencl(pso, PI/4, 0, PI/6);                                             if (verbose) printf(" chk6 ");  
     
     for(int i = 0; i<numSteps;i++){

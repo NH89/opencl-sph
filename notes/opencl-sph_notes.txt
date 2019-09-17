@@ -18,8 +18,6 @@
     pso.block_totals        = clCreateBuffer(_context, CL_MEM_READ_WRITE, pso.num_blocks*sizeof(unsigned int),      NULL, &error);      HANDLE_CL_ERROR(error);
     pso.backup_prefix_sum   = clCreateBuffer(_context, CL_MEM_READ_WRITE, pso.num_grid_cells*sizeof(unsigned int),  NULL, &error);      HANDLE_CL_ERROR(error);
 
-
-
 names              
 names_offsets       
 dimensions         
@@ -57,12 +55,6 @@ typedef struct {
     void ** host_data;
     unsigned int * host_data_size;
 } psdata;
-
-
-
-
-
-
 
 
 

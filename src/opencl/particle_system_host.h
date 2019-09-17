@@ -18,6 +18,7 @@ typedef struct {
     cl_mem entry_sizes;
 
     cl_mem data;
+    cl_mem tempdata;                                                                   // proposed change : add "tempdata"  - done 
     cl_mem data_sizes;
     cl_mem data_offsets;
 

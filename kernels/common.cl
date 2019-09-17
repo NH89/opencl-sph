@@ -528,7 +528,7 @@ kernel void insert_particles_in_bin_array (PSO_ARGS, global uint * backup_prefix
     if (i < n) cellparticles[atomic_inc(backup_prefix_sum + gridcell[i])] = i; // writes the global_id of the current particle to cellparticles[  ]
 }
 
-kernel void full_copy(){                // NB depends on selection of buffers &=> type of particle sim. fluid/solid/multi
+kernel void full_copy()  {                // NB depends on selection of buffers &=> type of particle sim. fluid/solid/multi
     USE_FIELD_FIRST_VALUE(n, uint) 
     uint i = get_global_id(0);
     if (i >= n) return;

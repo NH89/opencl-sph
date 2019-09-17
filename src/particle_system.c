@@ -55,7 +55,7 @@ void display_psdata(psdata data, const char * const * mask) {
     }
 }
 
-void write_psdata(psdata data, int number, const char* Case){
+void write_psdata(psdata data, int number, const char* Case){     // alternate output
     for (size_t field = 0; field < data.num_fields; ++field){
         char * name = data.names + data.names_offsets[field];
         char snum[5];
@@ -80,7 +80,7 @@ void write_psdata(psdata data, int number, const char* Case){
         }
     }
 }
-void write_psdata_ply(psdata data, int number, const char* Case){
+void write_psdata_ply(psdata data, int number, const char* Case){       // current output
     for (size_t field = 0; field < data.num_fields; ++field){
         char * name = data.names + data.names_offsets[field];
         char snum[5];
@@ -112,8 +112,8 @@ void write_psdata_ply(psdata data, int number, const char* Case){
 
 void init_psdata_fluid( psdata * data, int pnum, REAL mass, REAL timestep, REAL smoothingradius,
                         REAL xbound1, REAL ybound1, REAL zbound1,
-                        REAL xbound2, REAL ybound2, REAL zbound2 )
-{
+                        REAL xbound2, REAL ybound2, REAL zbound2 )                                      
+{                                                                                                       //  ## ## ## unused ? by testopencl.c , which simulates a solid ## ## ##    see "build_psdata_from_string(...) instead 
     { /* Names */
     const char * names_ref[] = {
         "pnum",
@@ -236,7 +236,7 @@ void init_psdata_fluid( psdata * data, int pnum, REAL mass, REAL timestep, REAL 
     memcpy(data->dimensions, dimensions, sum*sizeof(unsigned int));
     }
 
-    { /* Data */
+    { /* Data */                                        // calculate (i)field sizes, (ii)offsets, (iii)total data size
     unsigned int data_size = 0, field_data_size;
 
     data->data_sizes = malloc(data->num_fields*sizeof(unsigned int));
@@ -255,11 +255,14 @@ void init_psdata_fluid( psdata * data, int pnum, REAL mass, REAL timestep, REAL 
         data_size += field_data_size;
     }
 
-    data->data = calloc(data_size, 1);
+    data->data = calloc(data_size, 1);                  // calloc the main data array
+    data->tempdata = calloc(data_size, 1);              // "tempdata" should be the same size. 
+                                                        // ##  proposed change : done
+                                                        // add "tempdata" to psdata struct
     }
 
     { /* Assign some values */
-    set_field_psdata(data, "pnum", &pnum, sizeof(int), 0);
+    set_field_psdata(data, "pnum", &pnum, sizeof(int), 0);  //memcpy(data->data + data->data_offsets[PNUM] + offset, field, size);
     set_field_psdata(data, "mass", &mass, sizeof(REAL), 0);
     set_field_psdata(data, "timestep", &timestep, sizeof(REAL), 0);
     set_field_psdata(data, "smoothingradius", &smoothingradius, sizeof(REAL), 0);
@@ -273,17 +276,16 @@ void init_psdata_fluid( psdata * data, int pnum, REAL mass, REAL timestep, REAL 
     data->num_host_fields = 0;
     }
 }
-
-int get_field_psdata(psdata data, const char * name) {
-    unsigned int i;
-    for (i = 0; i < data.num_fields; ++i) {
+                                                        // ## proposed change :  ## warning change would clash with "sort_field_spec_list_by_type_size_descending(...)" 
+int get_field_psdata(psdata data, const char * name) {  // It seems that this system should be replaced with #Define dataname index
+    unsigned int i;                                     // Though that would require editigthe header if the parameters changed.
+    for (i = 0; i < data.num_fields; ++i) {             // This would replace both fns with just memcpy(...).
         if (strcmp(data.names + data.names_offsets[i], name) == 0) return i;
     }
-
     return -1;
 }
 
-void set_field_psdata(psdata * data, const char * name, void * field, unsigned int size, unsigned int offset) {
+void set_field_psdata(psdata * data, const char * name, void * field, unsigned int size, unsigned int offset) {  // ## only used by init_psdata_fluid(...)  above 
     int i = get_field_psdata(*data, name);
 
     if (i != -1) memcpy(data->data + data->data_offsets[i] + offset, field, size);
@@ -306,7 +308,7 @@ unsigned int psdata_data_size(psdata data) {
 
 /* Data needs to be heap allocated but it should be anyway, right? RIGHT? */
 /* Don't worry I'll allocate that string for you.. */
-int create_host_field_psdata(psdata * data, const char * name, void * field, unsigned int size) {
+int create_host_field_psdata(psdata * data, const char * name, void * field, unsigned int size) {     // ## ## ## unused ? 
     unsigned int new_num_host_fields = data->num_host_fields + 1;
 
     /* Allocate */
@@ -347,7 +349,7 @@ int create_host_field_psdata(psdata * data, const char * name, void * field, uns
     return i;
 }
 
-int get_host_field_psdata(psdata * data, const char * name) {
+int get_host_field_psdata(psdata * data, const char * name) {       // ## ## ## unused ?
     unsigned int i;
     for (i = 0; i < data->num_host_fields; ++i) {
         if (strcmp(data->host_names[i], name) == 0) return i;

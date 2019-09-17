@@ -1,0 +1,108 @@
+    bin_and_count_device_opencl(pso);
+    prefix_sum_device_opencl(pso);
+    copy_celloffset_to_backup_device_opencl(pso);
+    insert_particles_in_bin_array_device_opencl(pso);
+
+
+// all the device buffers:  ./src/opencl/particle_system_host.c:480-500
+
+    pso.names               = clCreateBuffer(_context, flags, 			psdata_names_size(*data), (char*) data->names, &error);               HANDLE_CL_ERROR(error);
+    pso.names_offsets       = clCreateBuffer(_context, flags, 			fmsize,                           data->names_offsets, &error);       HANDLE_CL_ERROR(error);
+    pso.dimensions          = clCreateBuffer(_context, flags, 			psdata_dimensions_size(*data),    data->dimensions, &error);          HANDLE_CL_ERROR(error);
+    pso.num_dimensions      = clCreateBuffer(_context, flags, 			fmsize,                           data->num_dimensions, &error);      HANDLE_CL_ERROR(error);
+    pso.dimensions_offsets  = clCreateBuffer(_context, flags, 			fmsize,                           data->dimensions_offsets, &error);  HANDLE_CL_ERROR(error);
+    pso.entry_sizes         = clCreateBuffer(_context, flags, 			fmsize,                           data->entry_sizes, &error);         HANDLE_CL_ERROR(error);
+    pso.data                = clCreateBuffer(_context, flags, 			psdata_data_size(*data),          data->data, &error);                HANDLE_CL_ERROR(error);
+    pso.data_sizes          = clCreateBuffer(_context, flags, 			fmsize,                           data->data_sizes, &error);          HANDLE_CL_ERROR(error);
+    pso.data_offsets        = clCreateBuffer(_context, flags, 			fmsize,                           data->data_offsets, &error);        HANDLE_CL_ERROR(error);
+    pso.block_totals        = clCreateBuffer(_context, CL_MEM_READ_WRITE, pso.num_blocks*sizeof(unsigned int),      NULL, &error);      HANDLE_CL_ERROR(error);
+    pso.backup_prefix_sum   = clCreateBuffer(_context, CL_MEM_READ_WRITE, pso.num_grid_cells*sizeof(unsigned int),  NULL, &error);      HANDLE_CL_ERROR(error);
+
+
+
+names              
+names_offsets       
+dimensions         
+num_dimensions     
+dimensions_offsets  
+entry_sizes         
+data               
+data_sizes         
+data_offsets       
+block_totals       
+backup_prefix_sum   
+
+//psdata struct declared in particle_system.h
+
+typedef struct {
+    /**
+     * The numerical data is all stored in a contiguous array at data, to
+     * facilitate uploading to the GPU.
+     */
+    unsigned int num_fields;
+    const char * names;
+    unsigned int * names_offsets;
+    unsigned int * dimensions; /* e.g. { 30, 3 } */
+    unsigned int * num_dimensions; /* 2 for example above */
+    unsigned int * dimensions_offsets;
+    unsigned int * entry_sizes;
+
+    void * data;			////////////  <<-- this is where the particles are stored 
+    unsigned int * data_sizes;
+    unsigned int * data_offsets;
+
+    /* Fields not needed in computation - won't be sent to GPU */
+    unsigned int num_host_fields;
+    char ** host_names;
+    void ** host_data;
+    unsigned int * host_data_size;
+} psdata;
+
+
+
+
+
+
+
+
+
+// from particle_system.c
+// names_ref[] array holds the names of the buffers,   
+
+void init_psdata_fluid( psdata * data, int pnum, REAL mass, REAL timestep, REAL smoothingradius,
+                        REAL xbound1, REAL ybound1, REAL zbound1,
+                        REAL xbound2, REAL ybound2, REAL zbound2 )
+{
+    { /* Names */
+    const char * names_ref[] = {
+        "pnum",
+        "n",
+        "mass",
+        "timestep",
+        "smoothingradius",
+
+        "position",
+        "posnext",
+        "velocity",
+        "veleval",
+        "velnext",
+        "acceleration",
+        "force",
+        "density",
+        "volume",
+
+        "gridbounds",
+        "gridres",
+        "gridcell",
+        "gridcount",
+        "celloffset",
+        "cellparticles"
+    };
+
+These are put into   char * name_ptr    , while    data->names_offsets[i]   
+
+Each of th   psdata * data   members holds a pointer to a buffer, which may hold one or num_particles  elements 
+
+
+
+ 

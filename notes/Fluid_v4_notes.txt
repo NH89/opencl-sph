@@ -1,0 +1,83 @@
+// private data of class FluidSystem in FluidSystem.h
+
+
+	private:
+		bool						m_Cmds[10];
+		Vector3DI					m_FrameRange;
+		Vector3DI					m_VolRes;
+		int							m_BrkRes;
+		std::string					m_InFile;
+		std::string					m_OutFile;
+		std::string					m_WorkPath;
+		float						m_Thresh;
+		bool						mbDebug;
+
+		std::string					mSceneName;
+
+		// Time
+		int							m_Frame;		
+		float						m_DT;
+		float						m_Time;	
+
+		// CUDA Kernels
+		CUmodule					m_Module;
+		CUfunction					m_Func[ FUNC_MAX ];
+
+		// Simulation Parameters
+		float						m_Param [ MAX_PARAM ];			// see defines above
+		Vector3DF					m_Vec [ MAX_PARAM ];
+		bool						m_Toggle [ MAX_PARAM ];		
+
+		// SPH Kernel functions
+		float						m_R2, m_Poly6Kern, m_LapKern, m_SpikyKern;		
+
+		// Particle Buffers
+		int						mNumPoints;
+		int						mMaxPoints;
+		int						mGoodPoints;
+		FBufs					m_Fluid;				// Fluid buffers
+		FBufs					m_FluidTemp;			// Fluid buffers (temporary)
+		FParams					m_FParams;				// Fluid parameters
+
+		CUdeviceptr				cuFBuf;					// GPU pointer containers
+		CUdeviceptr				cuFTemp;
+		CUdeviceptr				cuFParams;
+
+		// Acceleration Grid		
+		int						m_GridTotal;			// total # cells
+		Vector3DI				m_GridRes;				// resolution in each axis
+		Vector3DF				m_GridMin;				// volume of grid (may not match domain volume exactly)
+		Vector3DF				m_GridMax;		
+		Vector3DF				m_GridSize;				// physical size in each axis
+		Vector3DF				m_GridDelta;
+		int						m_GridSrch;
+		int						m_GridAdjCnt;
+		int						m_GridAdj[216];
+
+		// Acceleration Neighbor Table
+		int						m_NeighborNum;
+		int						m_NeighborMax;
+		int*					m_NeighborTable;
+		float*					m_NeighborDist;
+
+		char*					mPackBuf;
+		int*					mPackGrid;
+
+		int						mVBO[3];
+
+		// Record/Playback
+		bool					mbRecord;		
+		bool					mbRecordBricks;
+		int						mSpherePnts;
+		int						mTex[1];		
+
+		// Selected particle
+		int						mSelected;
+
+
+		// Saved results (for algorithm validation)
+		uint*					mSaveNdx;
+		uint*					mSaveCnt;
+		uint*					mSaveNeighbors;		
+	};	
+

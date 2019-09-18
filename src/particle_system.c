@@ -210,7 +210,7 @@ void init_psdata_fluid( psdata * data, int pnum, REAL mass, REAL timestep, REAL 
         sizeof(REAL),
 
         sizeof(REAL),
-        sizeof(unsigned int),name
+        sizeof(unsigned int),
         sizeof(unsigned int),
         sizeof(unsigned int),
         sizeof(unsigned int),

@@ -24,11 +24,8 @@ typedef double4 REAL4;
     USE_FIELD(gridcell,      uint) USE_FIELD(gridcount, uint) USE_FIELD(celloffset, uint)\
     USE_FIELD(cellparticles, uint) USE_FIELD(gridres,   uint)
 
-#define PSO_ARGS uint num_fields,\
-                global char * names,         global uint * names_offsets,\
-                global uint * dimensions,    global uint * num_dimensions, global uint * dimensions_offsets, global uint * entry_sizes,\
-                global void * data,          global uint * data_sizes,     global uint * data_offsets
-
+#define PSO_ARGS uint num_fields, global char * names, global uint * names_offsets, global uint * dimensions, global uint * num_dimensions, global uint * dimensions_offsets, global uint * entry_sizes, global void * data, global uint * data_sizes,     global uint * data_offsets, global void * tempdata
+                                                                                                                                            // added tempdata to PSO_ARGS
 #define PI 3.1416f// 3.1415926535  // float vs double PI 
 
 #define I_00 0

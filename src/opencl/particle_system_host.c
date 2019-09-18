@@ -157,8 +157,7 @@ void build_program(psdata * data, psdata_opencl * pso, const char * file_list)
 
         while (file_name) {
             char * file_path = malloc( ( strlen(exe_path) + strlen(file_name) + strlen(file_extension) + 1) * sizeof(char));
-            sprintf(file_path, "%s%s%s", exe_path, file_name, file_extension);
-            note(1, "Adding OpenCL file at %s\n", file_path);
+            sprintf(file_path, "%s%s%s", exe_path, file_name, file_extension);                                 note(1, "Adding OpenCL file at %s\n", file_path);
             long int file_length;
             FILE * f = fopen(file_path, "rb");
             free(file_path);

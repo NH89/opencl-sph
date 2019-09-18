@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.2)
 project(opencl_sph)
+#set(CMAKE_INSTALL_PREFIX "../install" CACHE STRING "opencl-sph_install_prefix" FORCE)
 
 set(CMAKE_C_STANDARD 11)
 
@@ -25,3 +26,5 @@ endif(OPENCL_SPH_REAL_TYPE)
 add_subdirectory(kernels)
 add_subdirectory(src)
 #SET( CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} -std=c99" )
+
+

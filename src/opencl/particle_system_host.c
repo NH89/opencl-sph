@@ -14,7 +14,7 @@
 #include "../note.h"
 #include "platforminfo.h"
 
-#define NUM_PS_ARGS 10
+#define NUM_PS_ARGS 11 //10  nb added tempdata
 
 // #define WG_FUJ_SZ 896
 // TODO Careful, currently the conf file is ignored in deciding the size of the local worker size
@@ -28,7 +28,10 @@ static unsigned int _num_command_queues = 0;
 static Platform const * _platforms;
 static unsigned int _num_platforms;
 
-static int target_platform = 1; // for Bracewell                // static targets to be replaced in later versions.
+static int target_platform = 0; //0 for Intel(R) Gen9 HD Graphics NEO on CSIRO laptop // 1; for Bracewell                // static targets to be replaced in later versions.  
+// NB crashed prefix_sum_device_opencl:  prefix_sum, 1, NULL, num_work_items=8192, workgroup_size=8192 
+// CL_OUT_OF_RESOURCES on Platform #1: Intel(R) CPU Runtime for OpenCL(TM) Applications
+// `-- Device #0: Intel(R) Core(TM) i7-7600U CPU @ 2.80GHz
 static int target_device = 0; // 0,1,2,3 for Bracewell
 
 char * add_field_macros_to_start_of_string(const char * string, psdata * data);
@@ -87,6 +90,7 @@ printf("chk4.3 ");
             ( _context, _platforms[target_platform].devices[target_device].id, // may need _platforms[1] for nvidia, [0]=>CPU
               CL_QUEUE_PROFILING_ENABLE, &error );
 printf("chk4.4 ");
+printf("\n\nPlatform : \n%s \n\n Device : \n%s  \n\n", _platforms[target_platform].name , _platforms[target_platform].devices[target_device].name );
         HANDLE_CL_ERROR(error);
     }
 
@@ -232,7 +236,12 @@ char * add_field_macros_to_start_of_string(const char * string, psdata * data)  
         strcpy(newstring_ptr, end);                                     newstring_ptr += end_size;
     }
     strcpy(newstring_ptr, string);
-    printf("\nOpenCL string for device program :\n %s \n\n",newstring);                                                                                                //  print the string to stdout for inspection, perhaps redirect to a file.
+
+    FILE * fp;
+    fp = fopen ("OpenCL_string.c", "w+");
+    fprintf("\nOpenCL string for device program :\n %s \n\n",newstring);  //  write the string to a file for inspection
+    fclose(fp);
+
     return newstring;
 }
 
@@ -272,6 +281,8 @@ static void bin_and_count_device_opencl(psdata_opencl pso)
 
     HANDLE_CL_ERROR(clEnqueueNDRangeKernel(_command_queues[0], count_particles_in_bins, 1,
                                            NULL, &num_p_workitems, &pso.po2_workgroup_size, 0, NULL, NULL));
+    printf("\nbin_and_count_device_opencl: ");
+    printf(" count_particles_in_bins, 1, NULL, num_p_workitems=%i, workgroup_size=%i \n", (int)num_p_workitems, (int)pso.po2_workgroup_size);
 
     HANDLE_CL_ERROR(clFinish(_command_queues[0]));
 }
@@ -284,9 +295,11 @@ static void prefix_sum_device_opencl(psdata_opencl pso)
 
     size_t num_work_groups = pso.num_blocks;
     size_t num_work_items = num_work_groups * pso.po2_workgroup_size;
+    printf("\nprefix_sum_device_opencl: ");
+    printf(" prefix_sum, 1, NULL, num_work_items=%i, workgroup_size=%i \n", (int)num_work_items, (int)pso.po2_workgroup_size);
 
-    HANDLE_CL_ERROR(clEnqueueNDRangeKernel(_command_queues[0], prefix_sum, 1, NULL,
-                                               &num_work_items, &pso.po2_workgroup_size, 0, NULL, NULL));
+    HANDLE_CL_ERROR(clEnqueueNDRangeKernel(_command_queues[0], prefix_sum, 1, 
+                                           NULL, &num_work_items, &pso.po2_workgroup_size, 0, NULL, NULL));
 
     HANDLE_CL_ERROR(clFinish(_command_queues[0]));
 }
@@ -402,6 +415,8 @@ void call_for_all_particles_device_opencl(psdata_opencl pso, const char * kernel
     size_t num_workgroups = (n - 1) / pso.po2_workgroup_size + 1;
     size_t num_workitems = num_workgroups * pso.po2_workgroup_size;
     call_kernel_device_opencl(pso, kernel_name, 1, 0, &num_workitems, &pso.po2_workgroup_size);
+    printf("\ncall_for_all_particles_device_opencl: ");
+    printf(" %s, 1, 0, num_workitems=%i, workgroup_size=%i \n", kernel_name, (int)num_workitems, (int)pso.po2_workgroup_size);
 }
 
 void populate_position_cuboid_device_opencl(psdata_opencl pso,
@@ -456,6 +471,8 @@ void rotate_particles_device_opencl(psdata_opencl pso, REAL angle_x, REAL angle_
                                            0, NULL, NULL));
 
     HANDLE_CL_ERROR(clFinish(_command_queues[0]));
+    printf("\nrotate_particles_device_opencl: ");
+    printf(" rotate_particles, 1, NULL, num_workitems=%i, workgroup_size=%i \n", (int)num_workitems, (int)pso.po2_workgroup_size);
 }
 
 /**

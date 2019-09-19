@@ -24,7 +24,10 @@ typedef double4 REAL4;
     USE_FIELD(gridcell,      uint) USE_FIELD(gridcount, uint) USE_FIELD(celloffset, uint)\
     USE_FIELD(cellparticles, uint) USE_FIELD(gridres,   uint)
 
-#define PSO_ARGS uint num_fields, global char * names, global uint * names_offsets, global uint * dimensions, global uint * num_dimensions, global uint * dimensions_offsets, global uint * entry_sizes, global void * data, global uint * data_sizes,     global uint * data_offsets, global void * tempdata
+#define PSO_ARGS uint num_fields,\
+                global char * names,            global uint * names_offsets,\
+                global uint * dimensions,       global uint * num_dimensions,   global uint * dimensions_offsets,   global uint * entry_sizes,\
+                global void * data,             global uint * data_sizes,       global uint * data_offsets,         global void * tempdata
                                                                                                                                             // added tempdata to PSO_ARGS
 #define PI 3.1416f// 3.1415926535  // float vs double PI 
 
@@ -352,15 +355,15 @@ inline int get_cell_at_offset (global uint * gridres, uint original, int x, int 
 }
 
 kernel void find_particle_bins (PSO_ARGS) {
-    USE_FIELD(position, REAL) 
+    USE_FIELD(position, REAL)
     USE_FIELD(gridbounds, REAL)
-    USE_FIELD(gridres, uint)    
-    USE_FIELD(gridcell, uint) 
+    USE_FIELD(gridres, uint)
+    USE_FIELD(gridcell, uint)
     USE_FIELD(gridcount, uint)
     
-    USE_FIELD_FIRST_VALUE(pnum, uint) 
+    USE_FIELD_FIRST_VALUE(pnum, uint)
     USE_FIELD_FIRST_VALUE(n, uint)
-    USE_FIELD_FIRST_VALUE(smoothingradius, REAL) 
+    USE_FIELD_FIRST_VALUE(smoothingradius, REAL)
 
     size_t i = get_global_id(0);
 
@@ -525,14 +528,14 @@ kernel void insert_particles_in_bin_array (PSO_ARGS, global uint * backup_prefix
     if (i < n) cellparticles[atomic_inc(backup_prefix_sum + gridcell[i])] = i; // writes the global_id of the current particle to cellparticles[  ]
 }
 
-kernel void full_copy()  {                // NB depends on selection of buffers &=> type of particle sim. fluid/solid/multi
+kernel void full_copy(PSO_ARGS)  {                // NB depends on selection of buffers &=> type of particle sim. fluid/solid/multi
     USE_FIELD_FIRST_VALUE(n, uint) 
     uint i = get_global_id(0);
     if (i >= n) return;
     
     // copy current data to Temp buffers
     USE_FIELD(cellparticles, uint) 
-    USE_FIELD(  )  // for each buffer and temp buffer
+//    USE_FIELD(  )  // for each buffer and temp buffer
     
     // tempbuff[i] = buff[cellparticles[i]]; // see create_psdata_opencl(...) in particle_system_host.c 
     

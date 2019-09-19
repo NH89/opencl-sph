@@ -525,26 +525,75 @@ kernel void insert_particles_in_bin_array (PSO_ARGS, global uint * backup_prefix
 
     size_t i = get_global_id(0);
 
-    if (i < n) cellparticles[atomic_inc(backup_prefix_sum + gridcell[i])] = i; // writes the global_id of the current particle to cellparticles[  ]
+    if (i < n) cellparticles[ atomic_inc( backup_prefix_sum + gridcell[i] ) ] = i; // writes the global_id of the current particle to cellparticles[  ]
 }
-
-kernel void full_copy(PSO_ARGS)  {                // NB depends on selection of buffers &=> type of particle sim. fluid/solid/multi
+/*PSO_ARGS*/
+kernel void full_copy( uint num_fields, global char * names, global uint * names_offsets, global uint * dimensions, global uint * num_dimensions, global uint * dimensions_offsets, global uint * entry_sizes, global void * data, global uint * data_sizes, global uint * data_offsets, global void * tempdata )  {                // NB depends on selection of buffers &=> type of particle sim. fluid/solid/multi
     USE_FIELD_FIRST_VALUE(n, uint) 
     uint i = get_global_id(0);
     if (i >= n) return;
     
     // copy current data to Temp buffers
     USE_FIELD(cellparticles, uint) 
-//    USE_FIELD(  )  // for each buffer and temp buffer
     
-    // tempbuff[i] = buff[cellparticles[i]]; // see create_psdata_opencl(...) in particle_system_host.c 
+    USE_FIELD(acceleration, REAL) 
+    USE_FIELD(force, REAL) 
+    USE_FIELD(position, REAL)
+    USE_FIELD(velocity, REAL) 
+    USE_FIELD(veleval, REAL) 
+    USE_FIELD(posnext, REAL) 
+    USE_FIELD(gravity, REAL)
+    
+    //  Which others need moving ? 
+    
+    /* 
+    #define USE_FIELD(name, type) global type * name = (global type *) name##_m;
+    #define USE_FIELD_FIRST_VALUE(name, type) private type name = *((global type *) name##_m);
+    */
+    
+    global void * temp_offset = tempdata - data;
+    
+    uimt sort_ndx = ? ;
+    
+    (acceleration + temp_offset)[ sort_ndx ]  = acceleration[i];
     
     
     
+// #define mass_m (((global char *) data) + data_offsets[0])
+// #define timestep_m (((global char *) data) + data_offsets[1])
+// #define smoothingradius_m (((global char *) data) + data_offsets[2])
+// #define gravity_m (((global char *) data) + data_offsets[3])
+// #define position_m (((global char *) data) + data_offsets[4])
+// #define originalpos_m (((global char *) data) + data_offsets[5])
+// #define posnext_m (((global char *) data) + data_offsets[6])
+// #define velocity_m (((global char *) data) + data_offsets[7])
+// #define veleval_m (((global char *) data) + data_offsets[8])
+// #define acceleration_m (((global char *) data) + data_offsets[9])
+// #define force_m (((global char *) data) + data_offsets[10])
+// #define stress_m (((global char *) data) + data_offsets[11])
+// #define rotation_m (((global char *) data) + data_offsets[12])
+// #define strain_m (((global char *) data) + data_offsets[13])
+// #define density_m (((global char *) data) + data_offsets[14])
+// #define density0_m (((global char *) data) + data_offsets[15])
+// #define gridbounds_m (((global char *) data) + data_offsets[16])
+// #define restdens_m (((global char *) data) + data_offsets[17])
+// #define stiffness_m (((global char *) data) + data_offsets[18])
+// #define viscosity_m (((global char *) data) + data_offsets[19])
+// #define bulk_modulus_m (((global char *) data) + data_offsets[20])
+// #define shear_modulus_m (((global char *) data) + data_offsets[21])
+// #define pnum_m (((global char *) data) + data_offsets[22])
+// #define n_m (((global char *) data) + data_offsets[23])
     
+}
+
+
+
+{
+   
+    //global void * temp_offset = tempdata - data;
     
-    // pointer swap to transfer sorted buffers // prob done at host.
-    
+    // for each param
+    (temp_offset + param)[ new location ] =   param[i];
     
     
     // NB elastic interactions - track beyond immediae adjacent bins.
@@ -552,6 +601,8 @@ kernel void full_copy(PSO_ARGS)  {                // NB depends on selection of 
     // NB must attach/detach both sides of an elastic connection when made/broken
     
     
+    // ## ##  pointer swap to transfer sorted buffers ## ##   // prob done at host.
+
 }
 
 ////////// Particle creation & transformation //////////

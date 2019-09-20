@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
     REAL * originalpos;
     REAL * density0;
     REAL * rotation;
-    unsigned int numSteps = 2000;
+    unsigned int numSteps = 200; //2000
     PS_GET_FIELD(data, "position", REAL, &position);
     PS_GET_FIELD(data, "originalpos", REAL, &originalpos);
     PS_GET_FIELD(data, "density0", REAL, &density0);

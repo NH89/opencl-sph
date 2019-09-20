@@ -20,6 +20,9 @@ typedef double4 REAL4;
 #define USE_FIELD(name, type) global type * name = (global type *) name##_m;
 #define USE_FIELD_FIRST_VALUE(name, type) private type name = *((global type *) name##_m);
 
+#define USE_FIELD_TEMP(name, type) global type * name##_temp = (global type *) name##_t;
+#define USE_FIELD_TEMP_FIRST_VALUE(name, type) private type name##_temp = *((global type *) name##_t);
+
 #define USE_GRID_PROPS \
     USE_FIELD(gridcell,      uint) USE_FIELD(gridcount, uint) USE_FIELD(celloffset, uint)\
     USE_FIELD(cellparticles, uint) USE_FIELD(gridres,   uint)
@@ -526,9 +529,24 @@ kernel void insert_particles_in_bin_array (PSO_ARGS, global uint * backup_prefix
     size_t i = get_global_id(0);
 
     if (i < n) cellparticles[ atomic_inc( backup_prefix_sum + gridcell[i] ) ] = i; // writes the global_id of the current particle to cellparticles[  ]
+
+    
+    
+    
 }
 /*PSO_ARGS*/
-kernel void full_copy( uint num_fields, global char * names, global uint * names_offsets, global uint * dimensions, global uint * num_dimensions, global uint * dimensions_offsets, global uint * entry_sizes, global void * data, global uint * data_sizes, global uint * data_offsets, global void * tempdata )  {                // NB depends on selection of buffers &=> type of particle sim. fluid/solid/multi
+kernel void full_copy( 
+uint num_fields, 
+global char * names, 
+global uint * names_offsets, 
+global uint * dimensions, 
+global uint * num_dimensions, 
+global uint * dimensions_offsets, 
+global uint * entry_sizes, 
+global void * data, 
+global uint * data_sizes, 
+global uint * data_offsets, 
+global void * tempdata )  {                // NB depends on selection of buffers &=> type of particle sim. fluid/solid/multi
     USE_FIELD_FIRST_VALUE(n, uint) 
     uint i = get_global_id(0);
     if (i >= n) return;
@@ -536,73 +554,89 @@ kernel void full_copy( uint num_fields, global char * names, global uint * names
     // copy current data to Temp buffers
     USE_FIELD(cellparticles, uint) 
     
-    USE_FIELD(acceleration, REAL) 
+    USE_FIELD(acceleration, REAL)          // Which of these need to be carried over between timestaps ? 
     USE_FIELD(force, REAL) 
     USE_FIELD(position, REAL)
     USE_FIELD(velocity, REAL) 
     USE_FIELD(veleval, REAL) 
     USE_FIELD(posnext, REAL) 
-    USE_FIELD(gravity, REAL)
-    
+    USE_FIELD(originalpos, REAL)
+    USE_FIELD(stress, REAL)
+    USE_FIELD(rotation, REAL)
+    USE_FIELD(strain, REAL)
+    USE_FIELD(density, REAL)
+    USE_FIELD(density0, REAL)
     //  Which others need moving ? 
-    
+    USE_FIELD_TEMP(acceleration, REAL) 
+    USE_FIELD_TEMP(force, REAL) 
+    USE_FIELD_TEMP(position, REAL)
+    USE_FIELD_TEMP(velocity, REAL) 
+    USE_FIELD_TEMP(veleval, REAL) 
+    USE_FIELD_TEMP(posnext, REAL) 
+    USE_FIELD_TEMP(originalpos, REAL)
+    USE_FIELD_TEMP(stress, REAL)
+    USE_FIELD_TEMP(rotation, REAL)
+    USE_FIELD_TEMP(strain, REAL)
+    USE_FIELD_TEMP(density, REAL)
+    USE_FIELD_TEMP(density0, REAL)
     /* 
     #define USE_FIELD(name, type) global type * name = (global type *) name##_m;
     #define USE_FIELD_FIRST_VALUE(name, type) private type name = *((global type *) name##_m);
+    
+    #define USE_FIELD_TEMP(name, type) global type * name##_temp = (global type *) name##_t;
+    #define USE_FIELD_TEMP_FIRST_VALUE(name, type) private type name##_temp = *((global type *) name##_t);
     */
+    uint indx =  ftemp.bufI(FGNDX)  [ i ];		
+    int sort_ndx = fbuf.bufI(FGRIDOFF) [ icell ] + indx ;	// global_ndx = grid_cell_offet + particle_offset	
     
-    global void * temp_offset = tempdata - data;
+//  acceleration_temp[ sort_ndx ]  = acceleration[i];
+    acceleration_temp[i]    = acceleration[i];      
+    force_temp[i]           = force[i];
+    position_temp[i]        = position[i];
+    velocity_temp[i]        = velocity[i];
+    veleval_temp[i]         = veleval[i];
+    posnext_temp[i]         = posnext[i];
+    originalpos_temp[i]     = originalpos[i];       // how Adam does rest lengths implicitly
+    stress_temp[i]          = stress[i];
+    rotation_temp[i]        = rotation[i];
+    strain_temp[i]          = strain[i];
+    density_temp[i]         = density[i];
+    density0_temp[i]        = density0[i];
     
-    uimt sort_ndx = ? ;
-    
-    (acceleration + temp_offset)[ sort_ndx ]  = acceleration[i];
-    
-    
-    
-// #define mass_m (((global char *) data) + data_offsets[0])
-// #define timestep_m (((global char *) data) + data_offsets[1])
-// #define smoothingradius_m (((global char *) data) + data_offsets[2])
-// #define gravity_m (((global char *) data) + data_offsets[3])
-// #define position_m (((global char *) data) + data_offsets[4])
-// #define originalpos_m (((global char *) data) + data_offsets[5])
-// #define posnext_m (((global char *) data) + data_offsets[6])
-// #define velocity_m (((global char *) data) + data_offsets[7])
-// #define veleval_m (((global char *) data) + data_offsets[8])
-// #define acceleration_m (((global char *) data) + data_offsets[9])
-// #define force_m (((global char *) data) + data_offsets[10])
-// #define stress_m (((global char *) data) + data_offsets[11])
-// #define rotation_m (((global char *) data) + data_offsets[12])
-// #define strain_m (((global char *) data) + data_offsets[13])
-// #define density_m (((global char *) data) + data_offsets[14])
-// #define density0_m (((global char *) data) + data_offsets[15])
-// #define gridbounds_m (((global char *) data) + data_offsets[16])
-// #define restdens_m (((global char *) data) + data_offsets[17])
-// #define stiffness_m (((global char *) data) + data_offsets[18])
-// #define viscosity_m (((global char *) data) + data_offsets[19])
-// #define bulk_modulus_m (((global char *) data) + data_offsets[20])
-// #define shear_modulus_m (((global char *) data) + data_offsets[21])
-// #define pnum_m (((global char *) data) + data_offsets[22])
-// #define n_m (((global char *) data) + data_offsets[23])
-    
-}
+/*//stiffness_temp       // Only in fluids and multiphysics.cl
+// viscosity_temp[   // USE_FIELD_FIRST_VALUE  i.e. same for all particles  
+// bulk_modulus_temp
+// shear_modulus_temp
+// gravity
+// mass
+// timestep
+// gridbounds
+// restdens
+// pnum
+// n
+// smoothingradius*/  
 
-
-
-{
-   
-    //global void * temp_offset = tempdata - data;
-    
-    // for each param
-    (temp_offset + param)[ new location ] =   param[i];
-    
+// Determine the sort_ndx, location of the particle after sort		
+// uint indx =  ftemp.bufI(FGNDX)  [ i ];		
+// int sort_ndx = fbuf.bufI(FGRIDOFF) [ icell ] + indx ;	// global_ndx = grid_cell_offet + particle_offset	
+//
+// 		// Transfer data to sort location
+// 		fbuf.bufI (FGRID) [ sort_ndx ] =	sort_ndx;			// full sort, grid indexing becomes identity		
+// 		fbuf.bufF3(FPOS) [sort_ndx] =		ftemp.bufF3(FPOS) [i];
+// 		fbuf.bufF3(FVEL) [sort_ndx] =		ftemp.bufF3(FVEL) [i];
+// 		fbuf.bufF3(FVEVAL)[sort_ndx] =		ftemp.bufF3(FVEVAL) [i];
+// 		fbuf.bufF3(FFORCE)[sort_ndx] =		ftemp.bufF3(FFORCE) [i];
+// 		fbuf.bufF (FPRESS)[sort_ndx] =		ftemp.bufF(FPRESS) [i];
+// 		fbuf.bufF (FDENSITY)[sort_ndx] =	ftemp.bufF(FDENSITY) [i];
+// 		fbuf.bufI (FCLR) [sort_ndx] =		ftemp.bufI(FCLR) [i];
+// 		fbuf.bufI (FGCELL) [sort_ndx] =		icell;
+// 		fbuf.bufI (FGNDX) [sort_ndx] =		indx;		
     
     // NB elastic interactions - track beyond immediae adjacent bins.
     // need updated pointers for connected particles, and store those pointers with each particle 
     // NB must attach/detach both sides of an elastic connection when made/broken
     
-    
     // ## ##  pointer swap to transfer sorted buffers ## ##   // prob done at host.
-
 }
 
 ////////// Particle creation & transformation //////////

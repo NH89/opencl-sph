@@ -212,10 +212,13 @@ char * add_field_macros_to_start_of_string(const char * string, psdata * data)  
 {
     const char * start = "#define ";                                            // At top of OpenCL string, for each data field:   #define 'dataField'_m  (((global char *) data) + data_offsets['index'])
     const char * middle = " (((global char *) data) + data_offsets[";           // Provides pointers to data within the cl_mem data buffer.
+    const char * middle_t = " (((global char *) tempdata) + data_offsets[";           // Provides pointers to data within the cl_mem data buffer.
     const char * end = "])\n";
 
     size_t start_size = strlen(start);
     size_t middle_size = strlen(middle);
+    size_t middle_size_t = strlen(middle_t);
+    
     size_t end_size = strlen(end);
 
     size_t string_size = 0;
@@ -223,8 +226,9 @@ char * add_field_macros_to_start_of_string(const char * string, psdata * data)  
     unsigned int f = 0;
     for (; f < data->num_fields; ++f) {
         string_size += start_size + strlen(data->names + data->names_offsets[f]) + 2 + middle_size + (int)(f == 0 ? 1 : floor(log10(f)) + 1) + end_size;
+        string_size += start_size + strlen(data->names + data->names_offsets[f]) + 2 + middle_size_t + (int)(f == 0 ? 1 : floor(log10(f)) + 1) + end_size;
     }
-    char * newstring = malloc(strlen(string) + string_size + 1);
+    char * newstring = malloc(strlen(string) + (string_size * 2) + 1);
     char * newstring_ptr = newstring;
 
     for (f = 0; f < data->num_fields; ++f) {
@@ -234,12 +238,20 @@ char * add_field_macros_to_start_of_string(const char * string, psdata * data)  
         strcpy(newstring_ptr, middle);                                  newstring_ptr += middle_size;
         sprintf(newstring_ptr, "%d", f);                                newstring_ptr += (int)(f == 0 ? 1 : floor(log10(f)) + 1);
         strcpy(newstring_ptr, end);                                     newstring_ptr += end_size;
+        
+        strcpy(newstring_ptr, start);                                   newstring_ptr += start_size;
+        strcpy(newstring_ptr, data->names + data->names_offsets[f]);    newstring_ptr += strlen(data->names + data->names_offsets[f]);
+        strcpy(newstring_ptr, "_t");                                    newstring_ptr += 2;                                                      //  "_m" added to data field names here, 
+        strcpy(newstring_ptr, middle_t);                                newstring_ptr += middle_size_t;
+        sprintf(newstring_ptr, "%d", f);                                newstring_ptr += (int)(f == 0 ? 1 : floor(log10(f)) + 1);
+        strcpy(newstring_ptr, end);                                     newstring_ptr += end_size;
     }
+    
     strcpy(newstring_ptr, string);
 
     FILE * fp;
     fp = fopen ("OpenCL_string.c", "w+");
-    fprintf("\nOpenCL string for device program :\n %s \n\n",newstring);  //  write the string to a file for inspection
+    fprintf(fp,"\nOpenCL string for device program :\n %s \n\n",newstring);  //  write the string to a file for inspection
     fclose(fp);
 
     return newstring;

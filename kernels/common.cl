@@ -1,3 +1,4 @@
+// common.cl ///////////////////////////////////////////////////////////////////////////////////////
 //#pragma OPENCL EXTENSION cl_khr_fp64 : enable
 
 #ifndef OPENCL_SPH_REAL_TYPE
@@ -14,7 +15,7 @@ typedef double2 REAL2;
 typedef double3 REAL3;
 typedef double4 REAL4;
 #else
-#error "OPENCL_SPH_REAL_TYPE must be either float or double."
+#error "OPENCL_SPH_REAL_TYPE must be either cl_float or cl_double."
 #endif
 
 #define USE_FIELD(name, type) global type * name = (global type *) name##_m;
@@ -111,6 +112,7 @@ inline REAL applyLapKernel (REAL dist, REAL smoothingradius) {
 
 ////////// Matrix functions //////////
 // Many are for solids only but what harm does it do leaving them here
+//nb "constant" is an OpenCL address space qualifier, required for program scope variables.
 
 constant uint givens_i_xx_values[] = { 0, 0, 1 };
 constant uint givens_i_yy_values[] = { 1, 2, 2 };
@@ -522,18 +524,15 @@ kernel void copy_celloffset_to_backup (PSO_ARGS, global uint * backup_prefix_sum
 
 kernel void insert_particles_in_bin_array (PSO_ARGS, global uint * backup_prefix_sum) {
     USE_FIELD_FIRST_VALUE(n, uint) 
-    
+
     USE_FIELD(gridcell, uint) 
     USE_FIELD(cellparticles, uint) 
 
     size_t i = get_global_id(0);
 
     if (i < n) cellparticles[ atomic_inc( backup_prefix_sum + gridcell[i] ) ] = i; // writes the global_id of the current particle to cellparticles[  ]
-
-    
-    
-    
 }
+
 /*PSO_ARGS*/
 kernel void full_copy( 
 uint num_fields, 
@@ -586,22 +585,23 @@ global void * tempdata )  {                // NB depends on selection of buffers
     #define USE_FIELD_TEMP(name, type) global type * name##_temp = (global type *) name##_t;
     #define USE_FIELD_TEMP_FIRST_VALUE(name, type) private type name##_temp = *((global type *) name##_t);
     */
-    uint indx =  ftemp.bufI(FGNDX)  [ i ];		
-    int sort_ndx = fbuf.bufI(FGRIDOFF) [ icell ] + indx ;	// global_ndx = grid_cell_offet + particle_offset	
-    
+    /*// As done in Fluids_v4
+    //uint indx =  ftemp.bufI(FGNDX)  [ i ];		
+    //int sort_ndx = fbuf.bufI(FGRIDOFF) [ icell ] + indx ;	// global_ndx = grid_cell_offet + particle_offset
+    */ 
 //  acceleration_temp[ sort_ndx ]  = acceleration[i];
-    acceleration_temp[i]    = acceleration[i];      
-    force_temp[i]           = force[i];
-    position_temp[i]        = position[i];
-    velocity_temp[i]        = velocity[i];
-    veleval_temp[i]         = veleval[i];
-    posnext_temp[i]         = posnext[i];
-    originalpos_temp[i]     = originalpos[i];       // how Adam does rest lengths implicitly
-    stress_temp[i]          = stress[i];
-    rotation_temp[i]        = rotation[i];
-    strain_temp[i]          = strain[i];
-    density_temp[i]         = density[i];
-    density0_temp[i]        = density0[i];
+    acceleration_temp[i]    = acceleration[ cellparticles[i] ];      
+    force_temp[i]           = force[        cellparticles[i] ];
+    position_temp[i]        = position[     cellparticles[i] ];
+    velocity_temp[i]        = velocity[     cellparticles[i] ];
+    veleval_temp[i]         = veleval[      cellparticles[i] ];
+    posnext_temp[i]         = posnext[      cellparticles[i] ];
+    originalpos_temp[i]     = originalpos[  cellparticles[i] ];       // how Adam does rest lengths implicitly
+    stress_temp[i]          = stress[       cellparticles[i] ];
+    rotation_temp[i]        = rotation[     cellparticles[i] ];
+    strain_temp[i]          = strain[       cellparticles[i] ];
+    density_temp[i]         = density[      cellparticles[i] ];
+    density0_temp[i]        = density0[     cellparticles[i] ];
     
 /*//stiffness_temp       // Only in fluids and multiphysics.cl
 // viscosity_temp[   // USE_FIELD_FIRST_VALUE  i.e. same for all particles  

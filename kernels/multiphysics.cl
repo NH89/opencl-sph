@@ -1,3 +1,4 @@
+// multiphysics.cl ///////////////////////////////////////////////////////////////////////////////////////
 #ifndef OPENCL_SPH_REAL_TYPE
 #define OPENCL_SPH_REAL_TYPE float
 #endif
@@ -18,13 +19,22 @@ typedef double4 REAL4;
 kernel void compute_forces_multiphysics (PSO_ARGS) {
     USE_GRID_PROPS
 
-    USE_FIELD_FIRST_VALUE(n, uint) USE_FIELD_FIRST_VALUE(mass, REAL)
-    USE_FIELD_FIRST_VALUE(restdens, REAL) USE_FIELD_FIRST_VALUE(stiffness, REAL)
+    USE_FIELD_FIRST_VALUE(n, uint) 
+    USE_FIELD_FIRST_VALUE(mass, REAL)
+    USE_FIELD_FIRST_VALUE(restdens, REAL) 
+    USE_FIELD_FIRST_VALUE(stiffness, REAL)
+    USE_FIELD_FIRST_VALUE(viscosity, REAL)
+    USE_FIELD_FIRST_VALUE(mass, REAL) 
+    USE_FIELD_FIRST_VALUE(smoothingradius, REAL)
 
-    USE_FIELD(originalpos, REAL) USE_FIELD_FIRST_VALUE(smoothingradius, REAL)
-    USE_FIELD(stress, REAL) USE_FIELD_FIRST_VALUE(mass, REAL) USE_FIELD(density0, REAL)
-    USE_FIELD(rotation, REAL) USE_FIELD(force, REAL) USE_FIELD(velocity, REAL)
-    USE_FIELD_FIRST_VALUE(viscosity, REAL) USE_FIELD(density, REAL) USE_FIELD(position, REAL)
+    USE_FIELD(originalpos, REAL) 
+    USE_FIELD(stress, REAL) 
+    USE_FIELD(density0, REAL)
+    USE_FIELD(rotation, REAL) 
+    USE_FIELD(force, REAL) 
+    USE_FIELD(velocity, REAL) 
+    USE_FIELD(density, REAL) 
+    USE_FIELD(position, REAL)
 
     USE_FIELD(particletype, uint)
 

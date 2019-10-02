@@ -251,7 +251,7 @@ char * add_field_macros_to_start_of_string(const char * string, psdata * data)  
 
     FILE * fp;
     fp = fopen ("OpenCL_string.c", "w+");
-    fprintf(fp,"\nOpenCL string for device program :\n %s \n\n",newstring);  //  write the string to a file for inspection
+    fprintf(fp,"//OpenCL string for device program :\n %s \n\n",newstring);  //  write the string to a file for inspection
     fclose(fp);
 
     return newstring;
@@ -344,6 +344,12 @@ static void insert_particles_in_bin_array_device_opencl(psdata_opencl pso)
     assert(insert_particles_in_bin_array != NULL);
 
     HANDLE_CL_ERROR(clEnqueueNDRangeKernel(_command_queues[0], insert_particles_in_bin_array, 1, NULL, &num_work_items, &pso.po2_workgroup_size, 0, NULL, NULL));
+
+    HANDLE_CL_ERROR(clFinish(_command_queues[0]));
+    
+    cl_kernel full_copy = get_kernel(pso, "full_copy");
+
+    HANDLE_CL_ERROR(clEnqueueNDRangeKernel(_command_queues[0], full_copy, 1, NULL, &num_work_items, &pso.po2_workgroup_size, 0, NULL, NULL));
 
     HANDLE_CL_ERROR(clFinish(_command_queues[0]));
 }
@@ -535,9 +541,9 @@ psdata_opencl create_psdata_opencl(psdata * data, const char * file_list)
 void assign_pso_kernel_args(psdata_opencl pso)
 {
     for (size_t i = 0; i < pso.num_kernels; ++i) {
-        set_kernel_args_to_pso(pso, pso.kernels[i]);
+        set_kernel_args_to_pso(pso, pso.kernels[i]);                                    // sets 1st 11 args of every kernel.
     }
-
+                                                                                        // now set additional args for specific kernels...
     cl_kernel prefix_sum = get_kernel(pso, "prefix_sum");
 
     assert(prefix_sum != NULL);
@@ -555,11 +561,11 @@ void assign_pso_kernel_args(psdata_opencl pso)
 
     cl_kernel insert_particles_in_bin_array = get_kernel(pso, "insert_particles_in_bin_array");
     assert(insert_particles_in_bin_array != NULL);
-    
     HANDLE_CL_ERROR(clSetKernelArg( insert_particles_in_bin_array, NUM_PS_ARGS, sizeof(cl_mem)    , &pso.backup_prefix_sum));
+    
 }
 
-void set_kernel_args_to_pso(psdata_opencl pso, cl_kernel kernel)
+void set_kernel_args_to_pso(psdata_opencl pso, cl_kernel kernel)                        // Called by assign_pso_kernel_args(..), sets 1st 11 args of every kernel.
 {
     HANDLE_CL_ERROR(clSetKernelArg(kernel, 0, sizeof(unsigned int), &pso.num_fields));
     HANDLE_CL_ERROR(clSetKernelArg(kernel, 1, sizeof(cl_mem), &pso.names));

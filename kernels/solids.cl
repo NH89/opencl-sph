@@ -1,3 +1,5 @@
+// solids.cl ///////////////////////////////////////////////////////////////////////////////////////
+
 #ifndef OPENCL_SPH_REAL_TYPE
 #define OPENCL_SPH_REAL_TYPE float
 #endif
@@ -54,7 +56,9 @@ inline void computeStress (global REAL strain[6], REAL bulk_modulus, REAL shear_
 ////////// Particle creation and transformation //////////
 
 kernel void init_original_position (PSO_ARGS) {
-    USE_FIELD(position, REAL) USE_FIELD(originalpos, REAL)
+    USE_FIELD(position, REAL) 
+    USE_FIELD(originalpos, REAL)
+    
     USE_FIELD_FIRST_VALUE(n, uint)
 
     unsigned int i = get_global_id(0);
@@ -72,10 +76,14 @@ kernel void compute_rotations_and_strains (PSO_ARGS) {
     USE_GRID_PROPS
 
     USE_FIELD_FIRST_VALUE(n, uint)
-
-    USE_FIELD(rotation, REAL) USE_FIELD(strain, REAL) USE_FIELD(position, REAL)
-    USE_FIELD(originalpos, REAL) USE_FIELD_FIRST_VALUE(smoothingradius, REAL)
-    USE_FIELD(density0, REAL) USE_FIELD_FIRST_VALUE(mass, REAL)
+    USE_FIELD_FIRST_VALUE(smoothingradius, REAL)
+    USE_FIELD_FIRST_VALUE(mass, REAL)
+    
+    USE_FIELD(rotation, REAL) 
+    USE_FIELD(strain, REAL) 
+    USE_FIELD(position, REAL)
+    USE_FIELD(originalpos, REAL) 
+    USE_FIELD(density0, REAL) 
     USE_FIELD(density, REAL)
 
     uint i = get_global_id(0);
@@ -214,9 +222,13 @@ kernel void compute_original_density (PSO_ARGS) {
     density0[i] *= mass;
 }
 kernel void compute_stresses (PSO_ARGS) {
-    USE_FIELD(strain, REAL) USE_FIELD(stress, REAL)
-    USE_FIELD_FIRST_VALUE(bulk_modulus, REAL) USE_FIELD_FIRST_VALUE(shear_modulus, REAL)
+    USE_FIELD(strain, REAL) 
+    USE_FIELD(stress, REAL)
+    
+    USE_FIELD_FIRST_VALUE(bulk_modulus, REAL) 
+    USE_FIELD_FIRST_VALUE(shear_modulus, REAL)
     USE_FIELD_FIRST_VALUE(n, uint)
+    
     unsigned int i = get_global_id(0);
     if (i >= n) return;
     computeStress(strain + i*6, bulk_modulus, shear_modulus, stress + i*6);
@@ -225,10 +237,19 @@ kernel void compute_stresses (PSO_ARGS) {
 kernel void compute_forces_solids (PSO_ARGS) {
     USE_GRID_PROPS
     USE_FIELD_FIRST_VALUE(n, uint)
-    USE_FIELD(originalpos, REAL) USE_FIELD_FIRST_VALUE(smoothingradius, REAL)
-    USE_FIELD(stress, REAL) USE_FIELD_FIRST_VALUE(mass, REAL) USE_FIELD(density0, REAL)
-    USE_FIELD(rotation, REAL) USE_FIELD(force, REAL) USE_FIELD(velocity, REAL)
-    USE_FIELD_FIRST_VALUE(viscosity, REAL) USE_FIELD(density, REAL) USE_FIELD(position, REAL)
+    USE_FIELD_FIRST_VALUE(smoothingradius, REAL)
+    USE_FIELD_FIRST_VALUE(mass, REAL)
+    USE_FIELD_FIRST_VALUE(viscosity, REAL)
+    
+    USE_FIELD(originalpos, REAL) 
+    USE_FIELD(stress, REAL)  
+    USE_FIELD(density0, REAL)
+    USE_FIELD(rotation, REAL) 
+    USE_FIELD(force, REAL) 
+    USE_FIELD(velocity, REAL)
+    USE_FIELD(density, REAL) 
+    USE_FIELD(position, REAL)
+    
     unsigned int i = get_global_id(0);
     if (i >= n) return;
     REAL3 ipos = vload3(i, position);

@@ -8,7 +8,7 @@
 #include "particle_system.h"
 #include "opencl/particle_system_host.h"
 #include "3rdparty/whereami.h"
-#include <CL/cl_ext.h>  ///added for kdevelop
+#include <CL/opencl.h>  ///added for kdevelop  //cl_ext.h
 #define PI 3.1415926535
 
 void printFieldOffsets(psdata data) {
@@ -41,13 +41,17 @@ int main(int argc, char *argv[])
     init_opencl();                                                                                  if (verbose) printf("\nchk5 ");  
     psdata_opencl pso = create_psdata_opencl(&data, get_config_section("opencl_kernel_files"));     if (verbose) printf("chk5.1 ");     // NB psdata data , psdata_opencl pso (struct holding cl_mem buffers)    
     populate_position_cuboid_device_opencl(pso, -1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 6, 6, 6);          if (verbose) printf("chk5.2 ");     // first kernel call  "populate_position_cuboid"
-                                                                                        //work group size=0 (auto) but 512 for others
+                                                                                                    //work group size=0 (auto) but 512 for others
     call_for_all_particles_device_opencl(pso, "init_original_position");                            if (verbose) printf("chk5.3 ");     
     rotate_particles_device_opencl(pso, PI/4, 0, PI/6);                                             if (verbose) printf("\nchk6 ");  
     printf("\nNumber of time steps = %i\n",numSteps);
     
     for(int i = 0; i<numSteps;i++){
         compute_particle_bins_device_opencl(pso);                                                   if (verbose) printf("\nchk7 ");  
+        cl_mem temp = pso.data;
+        pso.data = pso.tempdata ;
+        pso.tempdata = temp;                                                                        // pointer swap:  &pso.data <=> &pso.tempdata
+        
         call_for_all_particles_device_opencl(pso, "compute_original_density");
         call_for_all_particles_device_opencl(pso, "compute_density");                               if (verbose) printf("\nchk8 "); 
         call_for_all_particles_device_opencl(pso, "compute_rotations_and_strains");                 if (verbose) printf("\nchk9 "); 
@@ -66,3 +70,10 @@ int main(int argc, char *argv[])
     free_psdata(&data);
     return 0;
 }
+
+///  Note sequence for fluid simulation is (NB req fluid.conf &=> fluid.cl:
+//     compute_particle_bins_device_opencl(*pso);
+//     call_for_all_particles_device_opencl(*pso, "compute_density");
+//     call_for_all_particles_device_opencl(*pso, "compute_forces_fluids");
+//     call_for_all_particles_device_opencl(*pso, "step_forward");
+

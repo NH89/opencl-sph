@@ -1,3 +1,4 @@
+// constraints.cl ///////////////////////////////////////////////////////////////////////////////////////
 #ifndef OPENCL_SPH_REAL_TYPE
 #define OPENCL_SPH_REAL_TYPE float
 #endif
@@ -16,8 +17,10 @@ typedef double4 REAL4;
 #endif
 
 kernel void apply_plane_constraints(PSO_ARGS) {
-    USE_FIELD(position, REAL) USE_FIELD(velocity, REAL)
-    USE_FIELD(plane_constraints, REAL) USE_FIELD(plane_constraints_particles, uint)
+    USE_FIELD(position, REAL) 
+    USE_FIELD(velocity, REAL)
+    USE_FIELD(plane_constraints, REAL) 
+    USE_FIELD(plane_constraints_particles, uint)
 
     USE_FIELD_FIRST_VALUE(n, uint)
 

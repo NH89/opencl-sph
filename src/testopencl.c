@@ -36,7 +36,11 @@ int main(int argc, char *argv[])
     REAL * originalpos;
     REAL * density0;
     REAL * rotation;
+#ifndef OPENCL_SPH_MICROBENCHMARK
     uint numSteps = 2000;
+#else
+    uint numSteps = 10;
+#endif
 
     PS_GET_FIELD(data, "position", REAL, &position);
     PS_GET_FIELD(data, "originalpos", REAL, &originalpos);
@@ -69,9 +73,14 @@ for(int i = 0; i<numSteps;i++)
             call_for_all_particles_device_opencl(pso, "step_forward");
         
             sync_psdata_device_to_host(data, pso);
+#ifndef OPENCL_SPH_MICROBENCHMARK
 	    write_psdata(data, i, "solid");
+#endif
 }
-        free_psdata_opencl(&pso);
+#ifdef OPENCL_SPH_MICROBENCHMARK
+	write_psdata(data, numSteps-1, "solid");
+#endif
+	free_psdata_opencl(&pso);
     if (verbose) printf(" chk13 "); 
     terminate_opencl();
     if (verbose) printf(" chk14 "); 
